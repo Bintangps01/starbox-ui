@@ -43,8 +43,8 @@ Before you start, make sure you have the following installed:
 
 **1. Clone the repository:**
 ```bash
-git clone https://github.com/bintangps01/starbox-ai.git
-cd starbox-ai
+git clone https://github.com/bintangps01/starbox-ui.git
+cd starbox-ui
 ```
 
 **2. Install dependencies:**
