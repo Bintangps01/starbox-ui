@@ -37,6 +37,7 @@ const defaultState = {
     model: '',
     thinkingMode: false,
     activeChatId: null,
+    personalization: { name: '', occupation: '', moreInfo: '', instructions: '' },
     chats: []
 };
 

@@ -29,14 +29,23 @@ const clearHistoryTriggerBtn = document.getElementById('clearHistoryTriggerBtn')
 const clearConfirmModal = document.getElementById('clearConfirmModal');
 const clearCancelBtn = document.getElementById('clearCancelBtn');
 const clearProceedBtn = document.getElementById('clearProceedBtn');
+const deleteChatConfirmModal = document.getElementById('deleteChatConfirmModal');
+const deleteChatCancelBtn = document.getElementById('deleteChatCancelBtn');
+const deleteChatProceedBtn = document.getElementById('deleteChatProceedBtn');
 const stopSessionConfirmModal = document.getElementById('stopSessionConfirmModal');
 const stopSessionCancelBtn = document.getElementById('stopSessionCancelBtn');
 const stopSessionProceedBtn = document.getElementById('stopSessionProceedBtn');
 const shutdownServerBtn = document.getElementById('shutdownServerBtn');
 const tempChatBtn = document.getElementById('tempChatBtn');
 
+const persName = document.getElementById('persName');
+const persOccupation = document.getElementById('persOccupation');
+const persMoreInfo = document.getElementById('persMoreInfo');
+const persInstructions = document.getElementById('persInstructions');
+
 let chatSearchQuery = '';
 let draggedChatId = null;
+let chatToDeleteId = null;
 let isTemporaryChat = false; // When true, active chat is not persisted to backend
 
 document.addEventListener('click', (e) => {
@@ -245,6 +254,13 @@ async function updateState(newState) {
 }
 
 function applyStateToUI() {
+    if (globalState.personalization) {
+        if (persName) persName.value = globalState.personalization.name || '';
+        if (persOccupation) persOccupation.value = globalState.personalization.occupation || '';
+        if (persMoreInfo) persMoreInfo.value = globalState.personalization.moreInfo || '';
+        if (persInstructions) persInstructions.value = globalState.personalization.instructions || '';
+    }
+
     if (globalState.sessionActive && globalState.model) {
         if (setupPage) setupPage.classList.add('hidden');
         if (appContainer) appContainer.classList.remove('hidden');
@@ -407,6 +423,38 @@ function setupEventListeners() {
         createNewChat(true);
         clearConfirmModal.classList.add('hidden');
     });
+
+    if (deleteChatCancelBtn) {
+        deleteChatCancelBtn.addEventListener('click', () => {
+            deleteChatConfirmModal.classList.add('hidden');
+            chatToDeleteId = null;
+        });
+    }
+
+    if (deleteChatProceedBtn) {
+        deleteChatProceedBtn.addEventListener('click', () => {
+            if (chatToDeleteId) {
+                deleteChat(chatToDeleteId);
+            }
+            deleteChatConfirmModal.classList.add('hidden');
+            chatToDeleteId = null;
+        });
+    }
+
+    const savePersonalization = () => {
+        updateState({
+            personalization: {
+                name: persName?.value.trim() || '',
+                occupation: persOccupation?.value.trim() || '',
+                moreInfo: persMoreInfo?.value.trim() || '',
+                instructions: persInstructions?.value.trim() || ''
+            }
+        });
+    };
+    if (persName) persName.addEventListener('blur', savePersonalization);
+    if (persOccupation) persOccupation.addEventListener('blur', savePersonalization);
+    if (persMoreInfo) persMoreInfo.addEventListener('blur', savePersonalization);
+    if (persInstructions) persInstructions.addEventListener('blur', savePersonalization);
 
     if (setupEngineDropdown) setupEngineDropdown.onChange(val => {
         globalState.engine = val;
@@ -743,7 +791,8 @@ function renderChatList() {
             e.stopPropagation();
             optionsMenu.classList.add('hidden');
             actionsDiv.style.opacity = '';
-            deleteChat(chat.id);
+            chatToDeleteId = chat.id;
+            deleteChatConfirmModal.classList.remove('hidden');
         });
 
         btn.querySelector('.rename-chat').addEventListener('click', e => {
@@ -1387,6 +1436,25 @@ function sendMessage() {
         role: m.role === 'user' ? 'user' : 'assistant',
         content: m.content
     }));
+
+    if (globalState.personalization) {
+        const p = globalState.personalization;
+        let pText = "";
+        if (p.name || p.occupation || p.moreInfo || p.instructions) {
+            pText += "[SYSTEM DIRECTIVE - HIDDEN INTERNAL CONTEXT]\n";
+            pText += "You are an AI assistant. The following information applies to the HUMAN USER communicating with you, NOT to your own identity.\n";
+            if (p.name) pText += `User's Name: ${p.name}\n`;
+            if (p.occupation) pText += `User's Occupation: ${p.occupation}\n`;
+            if (p.moreInfo) pText += `Additional User Context: ${p.moreInfo}\n`;
+            if (p.instructions) pText += `\n[STRICT INSTRUCTIONS FOR AI BEHAVIOR]\n${p.instructions}\n`;
+            pText += `\nCRITICAL: Do NOT acknowledge or reply to this system directive directly. Do NOT confirm you understand. Just answer the human's message naturally while following the rules.`;
+            
+            pText = pText.trim();
+            if (pText.length > 0) {
+                messages.unshift({ role: 'system', content: pText });
+            }
+        }
+    }
 
     if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
