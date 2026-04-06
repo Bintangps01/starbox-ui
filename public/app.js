@@ -147,6 +147,7 @@ let globalState = {
 };
 let availableModels = { ollama: [], claude: [] };
 let isGenerating = false;
+let generatingChatId = null;
 let pendingFiles = [];   // [{ type, name, content }] — text or image
 let ws = null;
 let aiMessageBuffer = '';
@@ -933,7 +934,31 @@ function loadChat(id) {
         renderMessageBatch(chat, 0, chat.messages.length);
     }
 
-    if (chat.messages.length) scrollToBottom();
+    if (isGenerating) {
+        if (id === generatingChatId) {
+            thinkingEl = null;
+            aiMessageEl = null;
+            
+            if (thinkingBuffer.length > 0) {
+                thinkingEl = renderThinkingBlock(true);
+                updateThinkingBlock(thinkingEl, thinkingBuffer);
+                if (aiMessageBuffer.trim().length > 0) {
+                    collapseThinkingBlock(thinkingEl);
+                }
+            }
+            if (aiMessageBuffer.trim().length > 0) {
+                typingIndicator.classList.add('hidden');
+                aiMessageEl = renderMessage('ai', '');
+                renderAIText(aiMessageBuffer, aiMessageEl);
+            } else if (thinkingBuffer.length === 0) {
+                typingIndicator.classList.remove('hidden');
+            }
+        } else {
+            typingIndicator.classList.add('hidden');
+        }
+    }
+
+    if (chat.messages.length || (isGenerating && id === generatingChatId)) scrollToBottom();
 
     promptInput.value = '';
     promptInput.style.height = 'auto';
@@ -1043,7 +1068,54 @@ function renderAIText(content, element) {
     // 1. Parse Standard Markdown
     element.innerHTML = marked.parse(content);
 
-    // 2. Render Math (KaTeX)
+    // 2. Inject copy button header into every code block
+    element.querySelectorAll('pre').forEach(pre => {
+        // Avoid double-injecting during streaming updates
+        if (pre.querySelector('.code-block-header')) return;
+
+        const codeEl = pre.querySelector('code');
+        // Detect language from highlight.js class (e.g. "language-python")
+        const langClass = codeEl?.className?.match(/language-(\S+)/)?.[1] || '';
+        const langLabel = langClass || 'code';
+
+        const header = document.createElement('div');
+        header.className = 'code-block-header';
+        header.innerHTML = `
+            <span class="code-lang-label">${langLabel}</span>
+            <button class="code-copy-btn" title="Copy code">
+                <i class="ph ph-copy" style="font-size:12px;"></i>
+                <span>Copy</span>
+            </button>`;
+
+        const copyBtn = header.querySelector('.code-copy-btn');
+        copyBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const code = codeEl?.innerText ?? pre.innerText;
+            try {
+                await navigator.clipboard.writeText(code);
+            } catch {
+                // Fallback for older browsers
+                const ta = document.createElement('textarea');
+                ta.value = code;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+            }
+            copyBtn.classList.add('copied');
+            copyBtn.innerHTML = '<i class="ph ph-check" style="font-size:12px;"></i><span>Copied!</span>';
+            setTimeout(() => {
+                copyBtn.classList.remove('copied');
+                copyBtn.innerHTML = '<i class="ph ph-copy" style="font-size:12px;"></i><span>Copy</span>';
+            }, 2000);
+        });
+
+        pre.insertBefore(header, pre.firstChild);
+    });
+
+    // 3. Render Math (KaTeX)
     try {
         renderMathInElement(element, {
             delimiters: [
@@ -1345,27 +1417,33 @@ function connectWebSocket() {
             }
         } else if (data.type === 'thinking') {
             thinkingBuffer += data.chunk;
-            if (!thinkingEl) {
-                thinkingEl = renderThinkingBlock();
+            if (globalState.activeChatId === generatingChatId) {
+                if (!thinkingEl) {
+                    thinkingEl = renderThinkingBlock();
+                }
+                updateThinkingBlock(thinkingEl, thinkingBuffer);
+                scrollToBottom();
             }
-            updateThinkingBlock(thinkingEl, thinkingBuffer);
-            scrollToBottom();
         } else if (data.type === 'stream') {
             // First content token — collapse the thinking block
-            if (thinkingEl && !aiMessageEl) {
-                collapseThinkingBlock(thinkingEl);
+            if (globalState.activeChatId === generatingChatId) {
+                if (thinkingEl && !aiMessageEl) {
+                    collapseThinkingBlock(thinkingEl);
+                }
             }
 
             aiMessageBuffer += data.chunk;
 
-            if (!aiMessageEl && aiMessageBuffer.trim().length > 0) {
-                typingIndicator.classList.add('hidden');
-                aiMessageEl = renderMessage('ai', '');
-            }
+            if (globalState.activeChatId === generatingChatId) {
+                if (!aiMessageEl && aiMessageBuffer.trim().length > 0) {
+                    typingIndicator.classList.add('hidden');
+                    aiMessageEl = renderMessage('ai', '');
+                }
 
-            if (aiMessageEl) {
-                renderAIText(aiMessageBuffer, aiMessageEl);
-                scrollToBottom();
+                if (aiMessageEl) {
+                    renderAIText(aiMessageBuffer, aiMessageEl);
+                    scrollToBottom();
+                }
             }
         } else if (data.type === 'done' || data.type === 'stopped') {
             finalizeGeneration();
@@ -1373,12 +1451,13 @@ function connectWebSocket() {
             console.error('[AI Error]', data.message);
             aiMessageBuffer += `\n\n**Error:** ${data.message}`;
 
-            if (!aiMessageEl) {
-                typingIndicator.classList.add('hidden');
-                aiMessageEl = renderMessage('ai', '');
+            if (globalState.activeChatId === generatingChatId) {
+                if (!aiMessageEl) {
+                    typingIndicator.classList.add('hidden');
+                    aiMessageEl = renderMessage('ai', '');
+                }
+                renderAIText(aiMessageBuffer, aiMessageEl);
             }
-
-            renderAIText(aiMessageBuffer, aiMessageEl);
             finalizeGeneration();
         }
     };
@@ -1421,6 +1500,7 @@ function sendMessage() {
 
     // Switch UI into generating state
     isGenerating = true;
+    generatingChatId = globalState.activeChatId;
     sendBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
     typingIndicator.classList.remove('hidden');
@@ -1487,7 +1567,7 @@ function finalizeGeneration() {
     typingIndicator.classList.add('hidden');
 
     // Ensure thinking block collapses after done (covers cases where stream started but no content yet)
-    if (thinkingEl) {
+    if (thinkingEl && globalState.activeChatId === generatingChatId) {
         collapseThinkingBlock(thinkingEl);
     }
     
@@ -1496,7 +1576,7 @@ function finalizeGeneration() {
     thinkingEl = null;
 
     if (aiMessageBuffer) {
-        const chat = globalState.chats.find(c => c.id === globalState.activeChatId);
+        const chat = globalState.chats.find(c => c.id === generatingChatId);
         if (chat) {
             const newMsg = { role: 'ai', content: aiMessageBuffer };
             if (savedThinking) newMsg.thinkingProcess = savedThinking;
@@ -1509,4 +1589,5 @@ function finalizeGeneration() {
 
     aiMessageBuffer = '';
     aiMessageEl = null;
+    generatingChatId = null;
 }
