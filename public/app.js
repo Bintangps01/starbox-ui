@@ -568,6 +568,7 @@ function setupEventListeners() {
 
     document.addEventListener('dragenter', (e) => {
         e.preventDefault();
+        if (!e.dataTransfer || !e.dataTransfer.types || !Array.from(e.dataTransfer.types).includes('Files')) return;
         if (!globalState.sessionActive) return;
         dragCounter++;
         if (dragCounter === 1 && dragOverlay) {
@@ -580,6 +581,7 @@ function setupEventListeners() {
 
     document.addEventListener('dragleave', (e) => {
         e.preventDefault();
+        if (!e.dataTransfer || !e.dataTransfer.types || !Array.from(e.dataTransfer.types).includes('Files')) return;
         if (!globalState.sessionActive) return;
         dragCounter--;
         if (dragCounter === 0 && dragOverlay) {
@@ -596,6 +598,7 @@ function setupEventListeners() {
 
     document.addEventListener('drop', (e) => {
         e.preventDefault();
+        if (!e.dataTransfer || !e.dataTransfer.types || !Array.from(e.dataTransfer.types).includes('Files')) return;
         dragCounter = 0;
         if (dragOverlay) {
             dragOverlay.classList.add('opacity-0');
