@@ -37,6 +37,8 @@ const stopSessionCancelBtn = document.getElementById('stopSessionCancelBtn');
 const stopSessionProceedBtn = document.getElementById('stopSessionProceedBtn');
 const shutdownServerBtn = document.getElementById('shutdownServerBtn');
 const tempChatBtn = document.getElementById('tempChatBtn');
+const importChatBtn = document.getElementById('importChatBtn');
+const importChatFileInput = document.getElementById('importChatFileInput');
 
 const imageLightbox = document.getElementById('imageLightbox');
 const lightboxImage = document.getElementById('lightboxImage');
@@ -367,6 +369,21 @@ function setupEventListeners() {
         chatSearchQuery = e.target.value.toLowerCase().trim();
         renderChatList();
     });
+
+    // Import Chat — clicking the button re-triggers the hidden file input
+    if (importChatBtn) {
+        importChatBtn.addEventListener('click', () => {
+            if (importChatFileInput) importChatFileInput.click();
+        });
+    }
+    if (importChatFileInput) {
+        importChatFileInput.addEventListener('change', e => {
+            const file = e.target.files?.[0];
+            if (file) importChat(file);
+            // Reset so the same file can be re-imported if needed
+            importChatFileInput.value = '';
+        });
+    }
 
     if (settingsBtn) settingsBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
     if (closeSettingsBtn) closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
@@ -895,9 +912,12 @@ function renderChatList() {
                 <button class="options-trigger flex-shrink-0 flex items-center justify-center w-6 h-6 text-white/40 hover:text-white transition" title="Options">
                     <i class="ph ph-dots-three-outline-vertical text-[18px]"></i>
                 </button>
-                <div class="chat-options-menu glass-dropdown hidden shadow-2xl overflow-hidden" style="left: auto; right: 0; top: calc(100% + 4px); min-width: 120px; z-index: 50; padding: 4px;">
+                <div class="chat-options-menu glass-dropdown hidden shadow-2xl overflow-hidden" style="left: auto; right: 0; top: calc(100% + 4px); min-width: 130px; z-index: 50; padding: 4px;">
                     <div class="dropdown-option rename-chat text-white/80 hover:text-white mb-0.5">
                         <i class="ph ph-pencil-simple text-sm"></i> Rename
+                    </div>
+                    <div class="dropdown-option export-chat text-white/80 hover:text-white mb-0.5">
+                        <i class="ph ph-export text-sm"></i> Export
                     </div>
                     <div class="dropdown-option delete-chat !text-red-500 hover:!text-red-400 hover:!bg-red-500/10">
                         <i class="ph ph-trash text-sm"></i> Delete
@@ -934,6 +954,13 @@ function renderChatList() {
             actionsDiv.style.opacity = '';
             chatToDeleteId = chat.id;
             deleteChatConfirmModal.classList.remove('hidden');
+        });
+
+        btn.querySelector('.export-chat').addEventListener('click', e => {
+            e.stopPropagation();
+            optionsMenu.classList.add('hidden');
+            actionsDiv.style.opacity = '';
+            exportChat(chat.id);
         });
 
         btn.querySelector('.rename-chat').addEventListener('click', e => {
@@ -1432,6 +1459,82 @@ async function copyToClipboard(text) {
     } catch (err) {
         showToast('Failed to copy', 'error');
     }
+}
+
+// ── Chat Export ───────────────────────────────────────────────────────────────
+function exportChat(chatId) {
+    const chat = globalState.chats.find(c => c.id === chatId);
+    if (!chat) return;
+
+    const payload = {
+        starbox_export: '1.0',
+        exportedAt: new Date().toISOString(),
+        chat
+    };
+
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    // Build a safe filename: starbox-<title>-<YYYY-MM-DD>.json
+    const safeTitle = chat.title
+        .replace(/[^a-z0-9]/gi, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .substring(0, 48)
+        .toLowerCase() || 'chat';
+    const date = new Date().toISOString().slice(0, 10);
+    const filename = `starbox-${safeTitle}-${date}.json`;
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast(`Exported "${chat.title}"`, 'info');
+}
+
+// ── Chat Import ───────────────────────────────────────────────────────────────
+function importChat(file) {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const payload = JSON.parse(e.target.result);
+
+            // Validate
+            if (!payload.starbox_export || !payload.chat || !Array.isArray(payload.chat.messages)) {
+                showToast('Invalid file — not a Starbox chat export.', 'error');
+                return;
+            }
+
+            // Clone the chat with a fresh id to avoid collisions
+            const importedChat = {
+                ...payload.chat,
+                id: Date.now().toString(),
+                importedAt: new Date().toISOString(),
+                updatedAt: Date.now(),
+                isTemporary: false
+            };
+
+            // Prepend to chat list
+            globalState.chats.unshift(importedChat);
+            globalState.activeChatId = importedChat.id;
+            delete chatDOMCache[importedChat.id];
+            saveChats();
+            renderChatList();
+            loadChat(importedChat.id);
+
+            showToast(`Imported "${importedChat.title}"`, 'info');
+        } catch (err) {
+            showToast('Failed to parse file — make sure it is a valid JSON export.', 'error');
+        }
+    };
+    reader.readAsText(file);
 }
 
 function escapeHtml(str) {

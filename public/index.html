@@ -133,7 +133,7 @@
             <div class="flex-1 overflow-y-auto custom-scrollbar px-2 pb-4 space-y-0.5" id="chatList"></div>
 
             <div class="px-4 py-3 border-t border-white/[0.06] flex items-center justify-between">
-                <span class="text-[11px] text-white/25 font-medium tracking-wide uppercase">v0.1.7-a</span>
+                <span class="text-[11px] text-white/25 font-medium tracking-wide uppercase">v0.1.8-a</span>
                 <button id="settingsBtn" class="text-white/30 hover:text-white/70 transition-colors" title="Settings">
                     <i class="ph ph-gear text-base"></i>
                 </button>
@@ -274,7 +274,7 @@
 
     <!-- Settings Modal -->
     <div id="settingsModal" class="modal-overlay hidden">
-        <div class="modal-card glass-card relative custom-scrollbar" style="width: 440px; max-width: calc(100vw - 32px); max-height: 85vh; overflow-y: auto;">
+        <div class="modal-card glass-card relative no-scrollbar" style="width: 440px; max-width: calc(100vw - 32px); max-height: 85vh; overflow-y: auto;">
             <button id="closeSettingsBtn" class="absolute top-4 right-4 text-white/40 hover:text-white/80 transition">
                 <i class="ph ph-x"></i>
             </button>
@@ -354,6 +354,19 @@
                             <textarea id="persInstructions" rows="3" class="w-full bg-black/20 text-white/90 text-[13px] px-3 py-1.5 rounded-lg border border-white/10 focus:outline-none focus:border-indigo-400 transition resize-none custom-scrollbar placeholder-white/20" placeholder="e.g. Always respond in Spanish, be concise..."></textarea>
                         </div>
                     </div>
+                </div>
+
+                <!-- Import Chat -->
+                <div class="p-3 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between">
+                    <div class="text-left">
+                        <div class="text-sm font-medium text-white/80">Import Chat</div>
+                        <div class="text-xs text-white/40 mt-0.5">Load a chat from a .json export file</div>
+                    </div>
+                    <input type="file" id="importChatFileInput" accept=".json" class="hidden">
+                    <button id="importChatBtn"
+                        class="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white/90 rounded-lg text-xs font-medium transition-colors border border-white/10 flex items-center gap-1.5">
+                        <i class="ph ph-upload-simple"></i> Import
+                    </button>
                 </div>
 
                 <div class="p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between">

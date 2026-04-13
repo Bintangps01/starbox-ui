@@ -791,6 +791,10 @@ video {
   margin-top: 1rem;
 }
 
+.\!block {
+  display: block !important;
+}
+
 .block {
   display: block;
 }
@@ -1894,6 +1898,10 @@ video {
 
 .hover\:text-white\/80:hover {
   color: rgb(255 255 255 / 0.8);
+}
+
+.hover\:text-white\/90:hover {
+  color: rgb(255 255 255 / 0.9);
 }
 
 .hover\:opacity-80:hover {

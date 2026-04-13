@@ -29,13 +29,16 @@ Currently in alpha state, **Starbox UI** is a premium-designed web interface tha
 - **Thinking Mode** — Real-time visualization of the model's thought process, with collapsible thinking blocks and infinite-loop protection (60s wall-clock cap + 45s inactivity watchdog).
 - **Temporary Chat** — Enable ghost mode to chat without saving anything to disk. The conversation is wiped the moment you navigate away or refresh.
 - **Real-time Streaming** — Responses appear token-by-token using WebSockets for a fluid, ChatGPT-like experience.
+- **Export & Import Chats** — Download individual chat histories as `.json` files and easily import them back to transfer or restore conversations.
+- **Personalization** — Set custom AI behaviors globally by providing your name, occupation, extra context, and system instructions via the settings.
+- **Performance Optimized** — Toggleable limits on rendered messages and full DOM-caching ensure the UI remains blazing fast, even in long chat sessions.
 - **Instant Chat Search** — Filter your entire conversation history in real time from the sidebar.
 - **Drag-and-Drop Reordering** — Reorganize your chat list with native HTML5 drag-and-drop.
-- **File & Image Uploads** — Attach images to conversations for visual analysis using local vision models (like llava or gemma-2).
+- **File & Image Uploads** — Attach images with an interactive full-screen lightbox for visual analysis (with models like llava), and extract text contents directly from files.
 - **Persistent History** — All conversations are saved locally to a `data/state.json` file on the server.
-- **Settings Panel** — Centralized settings menu with a safe "Clear All History" feature.
-- **Auto Model Detection** — Automatically fetches all locally available Ollama models on startup via the Ollama REST API, no manual configuration needed.
-- **Stop Session** — Safely unload the current model from memory and return to the setup screen at any time. ***(Do this before closing the server to free up VRAM.)***
+- **Settings Panel** — Centralized settings menu with chat history deletion safeguards and data managers.
+- **Auto Model Detection** — Automatically fetches all locally available Ollama models on startup via the Ollama REST API.
+- **Stop Session** — Safely unload the current model from memory and return to the setup screen at any time to explicitly free up VRAM.
 - **Multi-device Access** — Access Starbox UI from your phone or tablet via your local network.
 
 ---
