@@ -1,16 +1,23 @@
-# ✨ Starbox UI
+<h1 align="center">✨ Starbox UI</h1>
 
-**A sleek, local AI chat interface built for [Ollama](https://ollama.com/)**
+<p align="center">
+  <b>A sleek, local AI chat interface built for <a href="https://ollama.com/">Ollama</a></b>
+</p>
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![Node.js](https://img.shields.io/badge/Node.js-≥18.0.0-green.svg)
-![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
+<p align="center">
+  <img src="https://img.shields.io/badge/License-MIT-blue.svg" />
+  <img src="https://img.shields.io/badge/Node.js-≥18.0.0-green.svg" />
+  <img src="https://img.shields.io/badge/Platform-Windows-lightgrey.svg" />
+</p>
 
-*Chat with your local AI models — fast, private, and totally offline.*
+
 
 <p align="center">
   <img src="screenshots/1.png" width="400"/>
   <img src="screenshots/2.png" width="400"/>
+</p>
+<p align="center">
+  <i>Chat with your local AI models — fast, private, and totally offline.</i>
 </p>
 
 ---
