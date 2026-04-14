@@ -1,6 +1,6 @@
 {
   "name": "starbox-ui",
-  "version": "0.1.8-a",
+  "version": "0.1.9-a",
   "description": "A sleek, local AI chat interface for Ollama. Premium UI with real-time streaming, thinking mode visualization, and full conversation history management.",
   "main": "server.js",
   "scripts": {

@@ -38,6 +38,7 @@ const defaultState = {
     thinkingMode: false,
     activeChatId: null,
     personalization: { name: '', occupation: '', moreInfo: '', instructions: '' },
+    webSearch: { enabled: false, tavilyApiKey: '' },
     chats: []
 };
 
@@ -156,6 +157,48 @@ app.post('/api/warm-model', async (req, res) => {
     } catch (e) {
         console.error('[WARM] Error:', e.message);
         res.json({ ok: false, error: e.message });
+    }
+});
+
+// Perform a Tavily web search and return structured results
+app.post('/api/web-search', async (req, res) => {
+    const { query } = req.body;
+    if (!query) return res.status(400).json({ error: 'No query provided.' });
+
+    const state = readState();
+    // Support legacy searchSettings field as fallback
+    const apiKey = state.webSearch?.tavilyApiKey || state.searchSettings?.tavilyApiKey || '';
+    if (!apiKey) return res.status(400).json({ error: 'No Tavily API key configured. Add one in Settings → Web Search.' });
+
+    try {
+        const response = await fetch('https://api.tavily.com/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                api_key: apiKey,
+                query,
+                search_depth: 'basic',
+                max_results: 5,
+                include_answer: false
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            return res.status(response.status).json({ error: err.message || `Tavily error: ${response.status}` });
+        }
+
+        const data = await response.json();
+        const results = (data.results || []).map(r => ({
+            title: r.title || '',
+            url: r.url || '',
+            content: (r.content || '').substring(0, 600)
+        }));
+        console.log(`[WEB SEARCH] query="${query}" — ${results.length} results`);
+        res.json({ results });
+    } catch (e) {
+        console.error('[WEB SEARCH] Error:', e.message);
+        res.status(500).json({ error: e.message });
     }
 });
 

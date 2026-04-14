@@ -27,6 +27,7 @@ Currently in alpha state, **Starbox UI** is a premium-designed web interface tha
 
 - **Works Fully Offline** — All UI libraries (icons, markdown, syntax highlighting, math) are bundled locally. No internet required after installation.
 - **Thinking Mode** — Real-time visualization of the model's thought process, with collapsible thinking blocks and infinite-loop protection (60s wall-clock cap + 45s inactivity watchdog).
+- **Web Search** — Enable web search in the settings menu with your Tavily API key (Only works online obviously).
 - **Temporary Chat** — Enable ghost mode to chat without saving anything to disk. The conversation is wiped the moment you navigate away or refresh.
 - **Real-time Streaming** — Responses appear token-by-token using WebSockets for a fluid, ChatGPT-like experience.
 - **Export & Import Chats** — Download individual chat histories as `.json` files and easily import them back to transfer or restore conversations.

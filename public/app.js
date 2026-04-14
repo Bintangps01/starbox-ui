@@ -49,10 +49,20 @@ const persOccupation = document.getElementById('persOccupation');
 const persMoreInfo = document.getElementById('persMoreInfo');
 const persInstructions = document.getElementById('persInstructions');
 
+// Web Search DOM refs
+const webSearchToggle = document.getElementById('webSearchToggle');
+const webSearchKeyRow = document.getElementById('webSearchKeyRow');
+const webSearchApiKey = document.getElementById('webSearchApiKey');
+const webSearchKeyRevealBtn = document.getElementById('webSearchKeyRevealBtn');
+const webSearchKeyRevealIcon = document.getElementById('webSearchKeyRevealIcon');
+const webSearchKeySaveBtn = document.getElementById('webSearchKeySaveBtn');
+const webSearchBtn = document.getElementById('webSearchBtn');
+
 let chatSearchQuery = '';
 let draggedChatId = null;
 let chatToDeleteId = null;
 let isTemporaryChat = false; // When true, active chat is not persisted to backend
+let isWebSearchActive = false; // Per-send toggle: web search ON for the next message only
 
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.chat-actions')) {
@@ -268,6 +278,9 @@ function applyStateToUI() {
         if (persMoreInfo) persMoreInfo.value = globalState.personalization.moreInfo || '';
         if (persInstructions) persInstructions.value = globalState.personalization.instructions || '';
     }
+
+    // Apply web search settings
+    applyWebSearchSettingsToUI();
 
     if (globalState.sessionActive && globalState.model) {
         if (setupPage) setupPage.classList.add('hidden');
@@ -558,11 +571,23 @@ function setupEventListeners() {
         });
     }
 
-    // Mobile sidebar
+    // Sidebar toggle (Mobile & Desktop)
     if (toggleSidebarBtn) toggleSidebarBtn.addEventListener('click', () => {
-        sidebar.classList.remove('hidden');
-        sidebar.classList.add('flex', 'fixed', 'inset-y-0', 'left-0');
-        sidebarOverlay.classList.remove('hidden');
+        if (window.innerWidth < 768) {
+            // Mobile: show as overlay
+            sidebar.classList.remove('hidden');
+            sidebar.classList.add('flex', 'fixed', 'inset-y-0', 'left-0');
+            sidebarOverlay.classList.remove('hidden');
+        } else {
+            // Desktop: toggle visibility
+            if (sidebar.classList.contains('md:flex')) {
+                sidebar.classList.remove('md:flex');
+                sidebar.classList.add('md:hidden');
+            } else {
+                sidebar.classList.remove('md:hidden');
+                sidebar.classList.add('md:flex');
+            }
+        }
     });
     [closeSidebarBtn, sidebarOverlay].forEach(el => {
         if (el) el.addEventListener('click', closeMobileSidebar);
@@ -648,6 +673,86 @@ function setupEventListeners() {
             processFilesForUpload(filesToUpload);
         }
     });
+    // ── Web Search settings ──
+    if (webSearchToggle) {
+        webSearchToggle.addEventListener('change', () => {
+            const enabled = webSearchToggle.checked;
+            if (webSearchKeyRow) webSearchKeyRow.classList.toggle('hidden', !enabled);
+            updateWebSearchBtnVisibility();
+            saveWebSearchSettings();
+        });
+    }
+
+    if (webSearchKeyRevealBtn && webSearchApiKey) {
+        webSearchKeyRevealBtn.addEventListener('click', () => {
+            const isMasked = webSearchApiKey.classList.contains('masked-input');
+            webSearchApiKey.classList.toggle('masked-input', !isMasked);
+            if (webSearchKeyRevealIcon) {
+                webSearchKeyRevealIcon.className = isMasked
+                    ? 'ph ph-eye text-sm'        // now revealed — show plain-eye to re-mask
+                    : 'ph ph-eye-slash text-sm'; // now masked   — show slashed-eye to reveal
+            }
+        });
+    }
+
+    if (webSearchKeySaveBtn && webSearchApiKey) {
+        webSearchKeySaveBtn.addEventListener('click', saveWebSearchSettings);
+        // Also save on Enter
+        webSearchApiKey.addEventListener('keydown', e => {
+            if (e.key === 'Enter') saveWebSearchSettings();
+        });
+    }
+
+    if (webSearchBtn) {
+        webSearchBtn.addEventListener('click', () => {
+            isWebSearchActive = !isWebSearchActive;
+            webSearchBtn.classList.toggle('active', isWebSearchActive);
+        });
+    }
+}
+
+// ── Web Search helpers ────────────────────────────────────────────────────────
+function applyWebSearchSettingsToUI() {
+    // Support legacy searchSettings key in state.json as fallback
+    const ws = globalState.webSearch || globalState.searchSettings || {};
+    const enabled = !!ws.enabled;
+    const key = ws.tavilyApiKey || '';
+
+    if (webSearchToggle) webSearchToggle.checked = enabled;
+    if (webSearchKeyRow) webSearchKeyRow.classList.toggle('hidden', !enabled);
+    if (webSearchApiKey && key) webSearchApiKey.value = key;
+    updateWebSearchBtnVisibility();
+}
+
+function updateWebSearchBtnVisibility() {
+    // Show the per-send button only when web search is turned on in settings
+    const enabled = webSearchToggle ? webSearchToggle.checked : false;
+    if (webSearchBtn) {
+        webSearchBtn.classList.toggle('hidden', !enabled);
+        if (!enabled) {
+            isWebSearchActive = false;
+            webSearchBtn.classList.remove('active');
+        }
+    }
+}
+
+function saveWebSearchSettings() {
+    const enabled = webSearchToggle ? webSearchToggle.checked : false;
+    const key = webSearchApiKey ? webSearchApiKey.value.trim() : '';
+
+    // Flash the Save button green to confirm
+    if (webSearchKeySaveBtn) {
+        const original = webSearchKeySaveBtn.textContent;
+        webSearchKeySaveBtn.textContent = 'Saved!';
+        webSearchKeySaveBtn.classList.replace('text-indigo-400', 'text-emerald-400');
+        setTimeout(() => {
+            webSearchKeySaveBtn.textContent = original;
+            webSearchKeySaveBtn.classList.replace('text-emerald-400', 'text-indigo-400');
+        }, 1500);
+    }
+
+    updateState({ webSearch: { enabled, tavilyApiKey: key } });
+    updateWebSearchBtnVisibility();
 }
 
 function openLightbox(src) {
@@ -1845,8 +1950,23 @@ function connectWebSocket() {
     };
 }
 
+// ── Perform Tavily web search ─────────────────────────────────────────────────
+async function performWebSearch(query) {
+    const port = window.location.port || '4000';
+    const res = await fetch(`http://${window.location.hostname}:${port}/api/web-search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query })
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Search failed (${res.status})`);
+    }
+    return await res.json(); // { results: [{title, url, content}] }
+}
+
 // ── Send message ──────────────────────────────────────────────────────────────
-function sendMessage() {
+async function sendMessage() {
     const rawText = promptInput.value.trim();
     if (!rawText && pendingFiles.length === 0) return;
 
@@ -1904,6 +2024,40 @@ function sendMessage() {
         }
         return msg;
     });
+
+    // ── Web Search injection ──────────────────────────────────────────────────
+    const searchWasActive = isWebSearchActive;
+    if (searchWasActive) {
+
+        // Show a searching indicator in the typing area
+        typingIndicator.classList.remove('hidden');
+        const searchingLabel = document.createElement('div');
+        searchingLabel.id = 'searchingLabel';
+        searchingLabel.className = 'max-w-3xl mx-auto px-4 text-xs text-sky-400/70 searching-indicator flex items-center gap-1.5 pl-11 pb-1';
+        searchingLabel.innerHTML = '<i class="ph ph-globe-hemisphere-west"></i> Searching the web…';
+        typingIndicator.parentNode.insertBefore(searchingLabel, typingIndicator);
+
+        try {
+            const { results } = await performWebSearch(rawText);
+            searchingLabel.remove();
+
+            if (results && results.length > 0) {
+                let context = `[WEB SEARCH RESULTS for "${rawText}"]\n`;
+                results.forEach((r, i) => {
+                    context += `\n${i + 1}. **${r.title}**\n   URL: ${r.url}\n   ${r.content}\n`;
+                });
+                context += `\n[END WEB SEARCH RESULTS]\nUse the above search results to inform your answer where relevant. Cite sources using their URLs when helpful.`;
+
+                // Prepend as a system context message (before any existing system message)
+                messages.unshift({ role: 'system', content: context });
+            }
+        } catch (err) {
+            searchingLabel.remove();
+            showToast(`Web search failed: ${err.message}`, 'error');
+            // Continue without search context — don't block the chat
+        }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     if (globalState.personalization) {
         const p = globalState.personalization;

@@ -773,3 +773,55 @@ body {
     0%, 100% { box-shadow: 0 4px 20px rgba(99, 102, 241, 0.1); transform: scale(1); }
     50% { box-shadow: 0 6px 25px rgba(99, 102, 241, 0.2); transform: scale(1.01); }
 }
+
+/* ── Web Search Button ────────────────────────────────────────────── */
+.web-search-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.4);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+    user-select: none;
+    white-space: nowrap;
+}
+.web-search-btn:hover {
+    background: rgba(255,255,255,0.09);
+    color: rgba(255,255,255,0.75);
+}
+.web-search-btn.active {
+    background: rgba(56, 189, 248, 0.12);
+    border-color: rgba(56, 189, 248, 0.35);
+    color: #7dd3fc;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.15) inset;
+}
+.web-search-btn.active i {
+    animation: searchGlobe 2.5s ease-in-out infinite;
+}
+@keyframes searchGlobe {
+    0%, 100% { transform: rotate(0deg); }
+    25%       { transform: rotate(-8deg); }
+    75%       { transform: rotate(8deg); }
+}
+
+/* Searching indicator shown while Tavily call is in flight */
+@keyframes searchPulse {
+    0%, 100% { opacity: 0.4; }
+    50%       { opacity: 1; }
+}
+.searching-indicator {
+    animation: searchPulse 1.2s ease-in-out infinite;
+}
+
+/* ── API key masking (avoids browser "save password" detection) ───── */
+/* We use type="text" + CSS masking so browsers never see a password field */
+.masked-input {
+    -webkit-text-security: disc; /* Chrome / Edge / Safari */
+}
+
+
