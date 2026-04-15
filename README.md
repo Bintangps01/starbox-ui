@@ -10,8 +10,6 @@
   <img src="https://img.shields.io/badge/Platform-Windows-lightgrey.svg" />
 </p>
 
-
-
 <p align="center">
   <img src="screenshots/1.png" width="400"/>
   <img src="screenshots/2.png" width="400"/>

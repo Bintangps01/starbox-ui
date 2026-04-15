@@ -133,12 +133,39 @@
             <div class="flex-1 overflow-y-auto custom-scrollbar px-2 pb-4 space-y-0.5" id="chatList"></div>
 
             <div class="px-4 py-3 border-t border-white/[0.06] flex items-center justify-between">
-                <span class="text-[11px] text-white/25 font-medium tracking-wide uppercase">v0.1.9-a</span>
-                <button id="settingsBtn" class="text-white/30 hover:text-white/70 transition-colors" title="Settings">
-                    <i class="ph ph-gear text-base"></i>
-                </button>
+                <span class="text-[11px] text-white/25 font-medium tracking-wide uppercase">v0.2.0-a</span>
+                <div class="flex items-center gap-2">
+                    <button id="settingsBtn" class="text-white/30 hover:text-white/70 transition-colors" title="Settings">
+                        <i class="ph ph-gear text-base"></i>
+                    </button>
+                    <button id="collapseSidebarBtn" class="text-white/30 hover:text-white/70 transition-colors" title="Collapse Sidebar">
+                        <i class="ph ph-sidebar-simple text-base"></i>
+                    </button>
+                </div>
             </div>
         </aside>
+
+        <!-- Mini Sidebar Rail (visible when full sidebar is collapsed) -->
+        <div id="miniSidebar" class="mini-sidebar hidden flex-shrink-0 flex-col items-center border-r border-white/[0.06] py-4 z-20">
+            <!-- Top: logo + new chat -->
+            <div class="flex flex-col items-center gap-3">
+                <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <i class="ph-fill ph-sparkle text-white text-xs"></i>
+                </div>
+                <button id="miniNewChatBtn" class="mini-sidebar-btn" title="New Chat">
+                    <i class="ph ph-plus text-base"></i>
+                </button>
+            </div>
+            <!-- Bottom: settings + expand -->
+            <div class="mt-auto flex flex-col items-center gap-2">
+                <button id="miniSettingsBtn" class="mini-sidebar-btn" title="Settings">
+                    <i class="ph ph-gear text-base"></i>
+                </button>
+                <button id="expandSidebarBtn" class="mini-sidebar-btn" title="Expand Sidebar">
+                    <i class="ph ph-sidebar-simple text-base" style="transform: scaleX(-1);"></i>
+                </button>
+            </div>
+        </div>
 
         <!-- Main Area -->
         <main class="flex-1 flex flex-col h-full relative min-w-0">
@@ -147,9 +174,6 @@
             <header
                 class="glass-header h-14 flex items-center justify-between px-4 border-b border-white/[0.06] flex-shrink-0 z-10">
                 <div class="flex items-center gap-2.5">
-                    <button id="toggleSidebarBtn" class="text-white/40 hover:text-white/80 transition mr-2" title="Toggle Sidebar">
-                        <i class="ph ph-list text-xl"></i>
-                    </button>
 
                     <!-- Active Model Display -->
                     <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10">
@@ -221,16 +245,13 @@
                                 <i class="ph ph-paperclip text-base"></i>
                                 <input type="file" id="fileUpload" class="hidden" multiple>
                             </label>
-                            <!-- Thinking toggle switch -->
-                            <label class="thinking-switch ml-1" id="thinkingSwitch" title="Toggle Extended Thinking">
-                                <input type="checkbox" id="thinkingCheckbox">
-                                <div class="switch-track">
-                                    <div class="switch-thumb">
-                                        <i class="ph ph-brain text-[9px]"></i>
-                                    </div>
-                                </div>
-                                <span class="switch-label text-xs text-white/50">Think</span>
-                            </label>
+                            <!-- Thinking toggle button -->
+                            <button id="thinkingBtn"
+                                class="thinking-btn ml-1"
+                                title="Toggle Extended Thinking">
+                                <i class="ph ph-brain text-sm"></i>
+                                <span class="switch-label text-xs">Think</span>
+                            </button>
                             <!-- Web Search toggle button (visible only when web search is enabled in settings) -->
                             <button id="webSearchBtn"
                                 class="web-search-btn hidden ml-1"

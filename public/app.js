@@ -6,7 +6,7 @@ const activeEngineIcon = document.getElementById('activeEngineIcon');
 const unloadModelBtn = document.getElementById('unloadModelBtn');
 const newChatBtn = document.getElementById('newChatBtn');
 const chatList = document.getElementById('chatList');
-const thinkingCheckbox = document.getElementById('thinkingCheckbox');
+const thinkingBtn = document.getElementById('thinkingBtn');
 const messagesContainer = document.getElementById('messagesContainer');
 const emptyState = document.getElementById('emptyState');
 const promptInput = document.getElementById('promptInput');
@@ -19,6 +19,11 @@ const sidebar = document.getElementById('sidebar');
 const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
 const closeSidebarBtn = document.getElementById('closeSidebarBtn');
 const sidebarOverlay = document.getElementById('sidebarOverlay');
+const miniSidebar = document.getElementById('miniSidebar');
+const collapseSidebarBtn = document.getElementById('collapseSidebarBtn');
+const expandSidebarBtn = document.getElementById('expandSidebarBtn');
+const miniNewChatBtn = document.getElementById('miniNewChatBtn');
+const miniSettingsBtn = document.getElementById('miniSettingsBtn');
 const inputPanel = document.getElementById('inputPanel');
 const chatMessages = document.getElementById('chatMessages');
 const chatSearchBox = document.getElementById('chatSearchBox');
@@ -63,6 +68,14 @@ let draggedChatId = null;
 let chatToDeleteId = null;
 let isTemporaryChat = false; // When true, active chat is not persisted to backend
 let isWebSearchActive = false; // Per-send toggle: web search ON for the next message only
+let isUserScrolledUp = false;
+
+if (chatMessages) {
+    chatMessages.addEventListener('scroll', () => {
+        const distanceToBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight;
+        isUserScrolledUp = distanceToBottom > 15;
+    });
+}
 
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.chat-actions')) {
@@ -288,7 +301,7 @@ function applyStateToUI() {
 
         if (activeModelLabel) activeModelLabel.textContent = globalState.model;
         if (activeEngineIcon) activeEngineIcon.className = globalState.engine === 'ollama' ? 'ph ph-cpu text-xs text-indigo-400' : 'ph ph-terminal text-xs text-violet-400';
-        if (thinkingCheckbox) thinkingCheckbox.checked = globalState.thinkingMode;
+        if (thinkingBtn) thinkingBtn.classList.toggle('active', !!globalState.thinkingMode);
 
         if (!globalState.chats || globalState.chats.length === 0) {
             createNewChat(true);
@@ -504,9 +517,11 @@ function setupEventListeners() {
         globalState.model = val;
     });
 
-    if (thinkingCheckbox) {
-        thinkingCheckbox.addEventListener('change', () => {
-            updateState({ thinkingMode: thinkingCheckbox.checked });
+    if (thinkingBtn) {
+        thinkingBtn.addEventListener('click', () => {
+            const newState = !globalState.thinkingMode;
+            updateState({ thinkingMode: newState });
+            thinkingBtn.classList.toggle('active', newState);
         });
     }
 
@@ -571,21 +586,43 @@ function setupEventListeners() {
         });
     }
 
-    // Sidebar toggle (Mobile & Desktop)
+    // Desktop sidebar collapse / expand
+    function collapseDesktopSidebar() {
+        sidebar.classList.remove('md:flex');
+        sidebar.classList.add('md:hidden');
+        if (miniSidebar) {
+            miniSidebar.classList.remove('hidden');
+            miniSidebar.classList.add('flex');
+        }
+    }
+    function expandDesktopSidebar() {
+        sidebar.classList.remove('md:hidden');
+        sidebar.classList.add('md:flex');
+        if (miniSidebar) {
+            miniSidebar.classList.add('hidden');
+            miniSidebar.classList.remove('flex');
+        }
+    }
+
+    if (collapseSidebarBtn) collapseSidebarBtn.addEventListener('click', collapseDesktopSidebar);
+    if (expandSidebarBtn)   expandSidebarBtn.addEventListener('click', expandDesktopSidebar);
+
+    // Mini sidebar action buttons
+    if (miniNewChatBtn) miniNewChatBtn.addEventListener('click', () => { if (newChatBtn) newChatBtn.click(); });
+    if (miniSettingsBtn) miniSettingsBtn.addEventListener('click', () => { if (settingsBtn) settingsBtn.click(); });
+
+    // Mobile sidebar toggle (hamburger — kept for mobile)
     if (toggleSidebarBtn) toggleSidebarBtn.addEventListener('click', () => {
         if (window.innerWidth < 768) {
-            // Mobile: show as overlay
             sidebar.classList.remove('hidden');
             sidebar.classList.add('flex', 'fixed', 'inset-y-0', 'left-0');
             sidebarOverlay.classList.remove('hidden');
         } else {
-            // Desktop: toggle visibility
+            // Desktop fallback
             if (sidebar.classList.contains('md:flex')) {
-                sidebar.classList.remove('md:flex');
-                sidebar.classList.add('md:hidden');
+                collapseDesktopSidebar();
             } else {
-                sidebar.classList.remove('md:hidden');
-                sidebar.classList.add('md:flex');
+                expandDesktopSidebar();
             }
         }
     });
@@ -1256,7 +1293,7 @@ function loadChat(id) {
         }
     }
 
-    if (chat.messages.length || isActiveGeneration) scrollToBottom();
+    if (chat.messages.length || isActiveGeneration) scrollToBottom(true);
 
     promptInput.value = '';
     promptInput.style.height = 'auto';
@@ -1785,8 +1822,11 @@ function editMessage(index, wrapper) {
     });
 }
 
-function scrollToBottom() {
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+function scrollToBottom(force = false) {
+    if (force || !isUserScrolledUp) {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        if (force) isUserScrolledUp = false;
+    }
 }
 
 // ── Thinking block helpers ─────────────────────────────────────────────────────
@@ -2005,7 +2045,7 @@ async function sendMessage() {
     sendBtn.classList.add('hidden');
     stopBtn.classList.remove('hidden');
     typingIndicator.classList.remove('hidden');
-    scrollToBottom();
+    scrollToBottom(true);
 
     aiMessageBuffer = '';
     aiMessageEl = null;
