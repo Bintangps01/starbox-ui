@@ -81,6 +81,10 @@ document.addEventListener('click', (e) => {
     if (!e.target.closest('.chat-actions')) {
         document.querySelectorAll('.chat-options-menu').forEach(m => m.classList.add('hidden'));
         document.querySelectorAll('.chat-actions').forEach(a => a.style.opacity = '');
+        // Restore drag state if closed, skipping items actively being renamed
+        document.querySelectorAll('.chat-item').forEach(btn => {
+            if (!btn.querySelector('input')) btn.draggable = true;
+        });
     }
 });
 
@@ -1087,14 +1091,18 @@ function renderChatList() {
         chat.messages.length > 0
     );
 
-    filteredChats.forEach((chat, index) => {
+    const pinnedChats = filteredChats.filter(c => c.isPinned);
+    const unpinnedChats = filteredChats.filter(c => !c.isPinned);
+    const chatsToRender = [...pinnedChats, ...unpinnedChats];
+
+    chatsToRender.forEach((chat, index) => {
         const btn = document.createElement('button');
         btn.className = 'chat-item group' + (chat.id === globalState.activeChatId ? ' active' : '');
         btn.draggable = true;
 
         btn.innerHTML = `
             <div class="flex items-center gap-2 min-w-0 flex-1 pointer-events-none">
-                <i class="ph ph-chat-teardrop text-sm flex-shrink-0"></i>
+                <i class="${chat.isPinned ? 'ph-fill ph-push-pin text-indigo-400 opacity-80' : 'ph ph-chat-teardrop'} text-sm flex-shrink-0"></i>
                 <span class="truncate chat-title-text">${escapeHtml(chat.title)}</span>
             </div>
             <div class="chat-actions relative flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1102,6 +1110,9 @@ function renderChatList() {
                     <i class="ph ph-dots-three-outline-vertical text-[18px]"></i>
                 </button>
                 <div class="chat-options-menu glass-dropdown hidden shadow-2xl overflow-hidden" style="left: auto; right: 0; top: calc(100% + 4px); min-width: 130px; z-index: 50; padding: 4px;">
+                    <div class="dropdown-option pin-chat text-white/80 hover:text-white mb-0.5">
+                        <i class="ph ${chat.isPinned ? 'ph-push-pin-slash' : 'ph-push-pin'} text-sm"></i> ${chat.isPinned ? 'Unpin' : 'Pin'}
+                    </div>
                     <div class="dropdown-option rename-chat text-white/80 hover:text-white mb-0.5">
                         <i class="ph ph-pencil-simple text-sm"></i> Rename
                     </div>
@@ -1128,13 +1139,18 @@ function renderChatList() {
                 act.style.opacity = ''; // Remove inline opacity
             });
             
+            // Restore draggable for all items just in case (except renaming items)
+            document.querySelectorAll('.chat-item').forEach(b => {
+                if (!b.querySelector('input')) b.draggable = true;
+            });
+            
             if (isHidden) {
                 optionsMenu.classList.remove('hidden');
                 actionsDiv.style.opacity = '1'; // Force actions to stay visible
+                btn.draggable = false; // Disable exclusively for the opened item
+            } else {
+                btn.draggable = true; // Toggled closed explicitly
             }
-            
-            // Keep the chat item from starting a drag when clicking options
-            btn.draggable = false;
         });
 
         btn.querySelector('.delete-chat').addEventListener('click', e => {
@@ -1151,6 +1167,18 @@ function renderChatList() {
             actionsDiv.style.opacity = '';
             exportChat(chat.id);
         });
+
+        const pinBtn = btn.querySelector('.pin-chat');
+        if (pinBtn) {
+            pinBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                optionsMenu.classList.add('hidden');
+                actionsDiv.style.opacity = '';
+                chat.isPinned = !chat.isPinned;
+                saveChats();
+                renderChatList();
+            });
+        }
 
         btn.querySelector('.rename-chat').addEventListener('click', e => {
             e.stopPropagation();
@@ -1227,7 +1255,11 @@ function renderChatList() {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
             if (draggedChatId !== chat.id) {
-                btn.classList.add('drag-over');
+                const draggedChat = globalState.chats.find(c => c.id === draggedChatId);
+                // Restrict dragging a pinned chat to the pinned section and unpinned chat to the unpinned section
+                if (draggedChat && !!draggedChat.isPinned === !!chat.isPinned) {
+                    btn.classList.add('drag-over');
+                }
             }
         });
 
@@ -1239,15 +1271,17 @@ function renderChatList() {
             e.preventDefault();
             btn.classList.remove('drag-over');
 
-            if (draggedChatId && draggedChatId !== chat.id) {
+            const draggedChat = globalState.chats.find(c => c.id === draggedChatId);
+            
+            if (draggedChat && draggedChatId !== chat.id && !!draggedChat.isPinned === !!chat.isPinned) {
                 // Find source and target arrays
                 const sourceIndex = globalState.chats.findIndex(c => c.id === draggedChatId);
                 const targetIndex = globalState.chats.findIndex(c => c.id === chat.id);
 
                 if (sourceIndex !== -1 && targetIndex !== -1) {
                     // Rearrange array
-                    const [draggedChat] = globalState.chats.splice(sourceIndex, 1);
-                    globalState.chats.splice(targetIndex, 0, draggedChat);
+                    const [removed] = globalState.chats.splice(sourceIndex, 1);
+                    globalState.chats.splice(targetIndex, 0, removed);
                     saveChats();
                     renderChatList();
                 }
