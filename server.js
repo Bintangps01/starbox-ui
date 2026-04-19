@@ -36,6 +36,11 @@ const defaultState = {
     engine: 'ollama',
     model: '',
     thinkingMode: false,
+    keepModelAlive: false,
+    modelIdleTimeoutEnabled: true,
+    modelIdleTimeout: 5,
+    appliedModelIdleTimeoutEnabled: null,
+    appliedModelIdleTimeout: null,
     activeChatId: null,
     personalization: { name: '', occupation: '', moreInfo: '', instructions: '' },
     webSearch: { enabled: false, tavilyApiKey: '' },
@@ -143,13 +148,18 @@ app.post('/api/warm-model', async (req, res) => {
     try {
         // Sending an empty prompt with keep_alive forces Ollama to load the model
         // without generating any output — this is the official "pre-load" pattern
+        const state = readState();
+        // If idle timeout is disabled (toggle off), keep the model alive indefinitely.
+        const idleEnabled = state.modelIdleTimeoutEnabled !== false;
+        const idleMinutes = typeof state.modelIdleTimeout === 'number' ? state.modelIdleTimeout : 5;
+        const keepAlive = !idleEnabled ? -1 : `${idleMinutes}m`;
         const response = await fetch('http://127.0.0.1:11434/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model, prompt: '', keep_alive: '5m', stream: false })
+            body: JSON.stringify({ model, prompt: '', keep_alive: keepAlive, stream: false })
         });
         if (response.ok) {
-            console.log(`[WARM] Model ${model} loaded.`);
+            console.log(`[WARM] Model ${model} loaded. keep_alive=${keepAlive}`);
             res.json({ ok: true });
         } else {
             res.json({ ok: false, status: response.status });
@@ -269,6 +279,13 @@ wss.on('connection', (ws) => {
                         // Explicitly set think=true/false — Qwen3 and other models default to think=true
                         // if the field is omitted, so we must always pass it explicitly.
                         payload.think = !!thinkingMode;
+
+                        // keep_alive: -1 = stay loaded until manually unloaded.
+                        // Controlled by modelIdleTimeoutEnabled toggle + modelIdleTimeout minutes.
+                        const state = readState();
+                        const idleEnabled = state.modelIdleTimeoutEnabled !== false;
+                        const idleMinutes = typeof state.modelIdleTimeout === 'number' ? state.modelIdleTimeout : 5;
+                        payload.keep_alive = !idleEnabled ? -1 : `${idleMinutes}m`;
 
                         console.log(`[CHAT] Ollama /api/chat — model=${model}, think=${!!thinkingMode}, messages=${payload.messages.length}`);
 

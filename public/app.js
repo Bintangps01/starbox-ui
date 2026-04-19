@@ -63,6 +63,14 @@ const webSearchKeyRevealIcon = document.getElementById('webSearchKeyRevealIcon')
 const webSearchKeySaveBtn = document.getElementById('webSearchKeySaveBtn');
 const webSearchBtn = document.getElementById('webSearchBtn');
 
+// Model Idle Timeout DOM refs
+const modelIdleTimeoutToggle = document.getElementById('modelIdleTimeoutToggle');
+const modelIdleTimeoutRow   = document.getElementById('modelIdleTimeoutRow');
+const modelIdleTimeoutInput = document.getElementById('modelIdleTimeoutInput');
+const modelIdleTimeoutMinus = document.getElementById('modelIdleTimeoutMinus');
+const modelIdleTimeoutPlus  = document.getElementById('modelIdleTimeoutPlus');
+const modelIdleRestartWarning = document.getElementById('modelIdleRestartWarning');
+
 let chatSearchQuery = '';
 let draggedChatId = null;
 let chatToDeleteId = null;
@@ -70,6 +78,7 @@ let isTemporaryChat = false; // When true, active chat is not persisted to backe
 let isWebSearchActive = false; // Per-send toggle: web search ON for the next message only
 let isUserScrolledUp = false;
 
+// Initial state caching for restart warnings is now handled via appliedModelIdleTimeout vars in globalState
 if (chatMessages) {
     chatMessages.addEventListener('scroll', () => {
         const distanceToBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight;
@@ -301,6 +310,36 @@ function applyStateToUI() {
     // Apply web search settings
     applyWebSearchSettingsToUI();
 
+    // Apply model idle timeout setting
+    if (modelIdleTimeoutToggle) {
+        const enabled = globalState.modelIdleTimeoutEnabled !== false; // default true
+        modelIdleTimeoutToggle.checked = enabled;
+        if (modelIdleTimeoutRow) modelIdleTimeoutRow.classList.toggle('hidden', !enabled);
+    }
+    if (modelIdleTimeoutInput) {
+        const saved = typeof globalState.modelIdleTimeout === 'number' ? globalState.modelIdleTimeout : 5;
+        modelIdleTimeoutInput.value = Math.max(1, saved);
+    }
+    
+    // Evaluate if the warning icon needs to show
+    if (modelIdleRestartWarning) {
+        if (!globalState.sessionActive) {
+            modelIdleRestartWarning.classList.add('hidden');
+        } else {
+            const currentEnabled = modelIdleTimeoutToggle ? modelIdleTimeoutToggle.checked : true;
+            const currentValue = modelIdleTimeoutInput ? (parseInt(modelIdleTimeoutInput.value, 10) || 5) : 5;
+            
+            const appliedEnabled = globalState.appliedModelIdleTimeoutEnabled !== null && globalState.appliedModelIdleTimeoutEnabled !== undefined ? globalState.appliedModelIdleTimeoutEnabled : globalState.modelIdleTimeoutEnabled;
+            const appliedValue = globalState.appliedModelIdleTimeout !== null && globalState.appliedModelIdleTimeout !== undefined ? globalState.appliedModelIdleTimeout : globalState.modelIdleTimeout;
+
+            if (currentEnabled !== appliedEnabled || (currentEnabled && currentValue !== appliedValue)) {
+                modelIdleRestartWarning.classList.remove('hidden');
+            } else {
+                modelIdleRestartWarning.classList.add('hidden');
+            }
+        }
+    }
+
     if (globalState.sessionActive && globalState.model) {
         if (setupPage) setupPage.classList.add('hidden');
         if (appContainer) appContainer.classList.remove('hidden');
@@ -418,6 +457,8 @@ function setupEventListeners() {
     }
 
     if (settingsBtn) settingsBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
+    const setupSettingsBtn = document.getElementById('setupSettingsBtn');
+    if (setupSettingsBtn) setupSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
     if (closeSettingsBtn) closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
 
     if (clearHistoryTriggerBtn) clearHistoryTriggerBtn.addEventListener('click', () => {
@@ -544,7 +585,13 @@ function setupEventListeners() {
                 await warmModel(model);
             }
 
-            await updateState({ sessionActive: true, engine, model });
+            await updateState({ 
+                sessionActive: true, 
+                engine, 
+                model,
+                appliedModelIdleTimeoutEnabled: globalState.modelIdleTimeoutEnabled,
+                appliedModelIdleTimeout: globalState.modelIdleTimeout 
+            });
 
             setupProceedBtn.disabled = false;
             setupProceedBtn.innerHTML = '<span>Proceed</span> <i class="ph ph-arrow-right"></i>';
@@ -784,6 +831,67 @@ function setupEventListeners() {
             isWebSearchActive = !isWebSearchActive;
             webSearchBtn.classList.toggle('active', isWebSearchActive);
         });
+    }
+
+    function checkIdleTimeoutChanged() {
+        if (!modelIdleRestartWarning) return;
+        
+        // If session hasn't started yet, no restart is required
+        if (!globalState.sessionActive) {
+            modelIdleRestartWarning.classList.add('hidden');
+            return;
+        }
+
+        const currentEnabled = modelIdleTimeoutToggle ? modelIdleTimeoutToggle.checked : true;
+        const currentValue = modelIdleTimeoutInput ? (parseInt(modelIdleTimeoutInput.value, 10) || 5) : 5;
+        
+        const appliedEnabled = globalState.appliedModelIdleTimeoutEnabled !== null && globalState.appliedModelIdleTimeoutEnabled !== undefined ? globalState.appliedModelIdleTimeoutEnabled : globalState.modelIdleTimeoutEnabled;
+        const appliedValue = globalState.appliedModelIdleTimeout !== null && globalState.appliedModelIdleTimeout !== undefined ? globalState.appliedModelIdleTimeout : globalState.modelIdleTimeout;
+
+        // Show warning if enabled state changed, OR (if it's currently enabled) the minute value changed
+        if (currentEnabled !== appliedEnabled || (currentEnabled && currentValue !== appliedValue)) {
+            modelIdleRestartWarning.classList.remove('hidden');
+        } else {
+            modelIdleRestartWarning.classList.add('hidden');
+        }
+    }
+
+    function saveIdleTimeout() {
+        const val = Math.max(1, Math.min(120, parseInt(modelIdleTimeoutInput.value, 10) || 5));
+        modelIdleTimeoutInput.value = val;
+        updateState({ modelIdleTimeout: val });
+        checkIdleTimeoutChanged();
+    }
+
+    if (modelIdleTimeoutToggle) {
+        modelIdleTimeoutToggle.addEventListener('change', () => {
+            const enabled = modelIdleTimeoutToggle.checked;
+            if (modelIdleTimeoutRow) modelIdleTimeoutRow.classList.toggle('hidden', !enabled);
+            updateState({ modelIdleTimeoutEnabled: enabled });
+            checkIdleTimeoutChanged();
+        });
+    }
+
+    if (modelIdleTimeoutMinus) {
+        modelIdleTimeoutMinus.addEventListener('click', () => {
+            if (!modelIdleTimeoutInput) return;
+            const cur = parseInt(modelIdleTimeoutInput.value, 10) || 5;
+            modelIdleTimeoutInput.value = Math.max(1, cur - 1);
+            saveIdleTimeout();
+        });
+    }
+
+    if (modelIdleTimeoutPlus) {
+        modelIdleTimeoutPlus.addEventListener('click', () => {
+            if (!modelIdleTimeoutInput) return;
+            const cur = parseInt(modelIdleTimeoutInput.value, 10) || 5;
+            modelIdleTimeoutInput.value = Math.min(120, cur + 1);
+            saveIdleTimeout();
+        });
+    }
+
+    if (modelIdleTimeoutInput) {
+        modelIdleTimeoutInput.addEventListener('change', saveIdleTimeout);
     }
 }
 

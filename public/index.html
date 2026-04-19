@@ -42,9 +42,10 @@
 
     <!-- Setup Page -->
     <div id="setupPage" class="h-screen w-full flex flex-col items-center justify-center relative z-20">
-        <div
-            class="glass-card max-w-sm w-full mx-4 p-8 rounded-3xl flex flex-col items-center shadow-2xl relative">
-            <div class="absolute inset-0 rounded-3xl bg-gradient-to-br from-indigo-500/5 to-purple-500/5 pointer-events-none"></div>
+        <div class="glass-card max-w-sm w-full mx-4 p-8 rounded-3xl flex flex-col items-center shadow-2xl relative">
+            <div
+                class="absolute inset-0 rounded-3xl bg-gradient-to-br from-indigo-500/5 to-purple-500/5 pointer-events-none">
+            </div>
 
             <div
                 class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 mb-6 relative z-10">
@@ -99,6 +100,11 @@
             class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors font-medium text-sm">
             <i class="ph ph-power text-lg"></i> Stop Server
         </button>
+        <!-- Settings Button (fixed to viewport bottom-right) -->
+        <button id="setupSettingsBtn" style="position:fixed; bottom:24px; right:24px; z-index:200;"
+            class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/40 hover:bg-white/10 hover:text-white/70 transition-colors font-medium text-sm">
+            <i class="ph ph-gear text-lg"></i> Settings
+        </button>
     </div>
 
     <!-- Main App Container -->
@@ -133,12 +139,15 @@
             <div class="flex-1 overflow-y-auto custom-scrollbar px-2 pb-4 space-y-0.5 w-64" id="chatList"></div>
 
             <div class="px-4 py-3 border-t border-white/[0.06] flex items-center justify-between w-64">
-                <span class="text-[11px] text-white/25 font-medium tracking-wide uppercase">v0.2.2-a</span>
+                <span class="text-[11px] text-white/25 font-medium tracking-wide uppercase">v0.2.3-a</span>
                 <div class="flex items-center gap-2">
-                    <button id="settingsBtn" class="text-white/30 hover:text-white/70 transition-colors" title="Settings">
+                    <button id="settingsBtn" class="text-white/30 hover:text-white/70 transition-colors"
+                        title="Settings">
                         <i class="ph ph-gear text-base"></i>
                     </button>
-                    <button id="collapseSidebarBtn" class="hidden md:block text-white/30 hover:text-white/70 transition-colors" title="Collapse Sidebar">
+                    <button id="collapseSidebarBtn"
+                        class="hidden md:block text-white/30 hover:text-white/70 transition-colors"
+                        title="Collapse Sidebar">
                         <i class="ph ph-sidebar-simple text-base"></i>
                     </button>
                 </div>
@@ -146,10 +155,12 @@
         </aside>
 
         <!-- Mini Sidebar Rail (visible when full sidebar is collapsed) -->
-        <div id="miniSidebar" class="mini-sidebar hidden w-16 flex-shrink-0 flex-col items-center border-r border-white/[0.06] py-4 z-20 transition-opacity duration-300">
+        <div id="miniSidebar"
+            class="mini-sidebar hidden w-16 flex-shrink-0 flex-col items-center border-r border-white/[0.06] py-4 z-20 transition-opacity duration-300">
             <!-- Top: logo + new chat -->
             <div class="flex flex-col items-center gap-3">
-                <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                <div
+                    class="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
                     <i class="ph-fill ph-sparkle text-white text-xs"></i>
                 </div>
                 <button id="miniNewChatBtn" class="mini-sidebar-btn" title="New Chat">
@@ -175,7 +186,8 @@
                 class="glass-header h-14 flex items-center justify-between px-4 border-b border-white/[0.06] flex-shrink-0 z-10">
                 <div class="flex items-center gap-2.5">
                     <!-- Mobile sidebar toggle -->
-                    <button id="toggleSidebarBtn" class="md:hidden text-white/60 hover:text-white/90 transition flex items-center">
+                    <button id="toggleSidebarBtn"
+                        class="md:hidden text-white/60 hover:text-white/90 transition flex items-center">
                         <i class="ph ph-list text-xl"></i>
                     </button>
 
@@ -250,15 +262,12 @@
                                 <input type="file" id="fileUpload" class="hidden" multiple>
                             </label>
                             <!-- Thinking toggle button -->
-                            <button id="thinkingBtn"
-                                class="thinking-btn ml-1"
-                                title="Toggle Extended Thinking">
+                            <button id="thinkingBtn" class="thinking-btn ml-1" title="Toggle Extended Thinking">
                                 <i class="ph ph-brain text-sm"></i>
                                 <span class="switch-label text-xs">Think</span>
                             </button>
                             <!-- Web Search toggle button (visible only when web search is enabled in settings) -->
-                            <button id="webSearchBtn"
-                                class="web-search-btn hidden ml-1"
+                            <button id="webSearchBtn" class="web-search-btn hidden ml-1"
                                 title="Toggle Web Search for this message">
                                 <i class="ph ph-globe-hemisphere-west text-sm"></i>
                                 <span class="switch-label text-xs">Search</span>
@@ -283,7 +292,9 @@
         </main>
 
         <!-- Mobile overlay -->
-        <div id="sidebarOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-10 hidden md:hidden transition-opacity duration-300 opacity-0"></div>
+        <div id="sidebarOverlay"
+            class="fixed inset-0 bg-black/60 backdrop-blur-sm z-10 hidden md:hidden transition-opacity duration-300 opacity-0">
+        </div>
     </div> <!-- End App Container -->
 
     <!-- Model Switch Confirmation Modal -->
@@ -306,7 +317,8 @@
 
     <!-- Settings Modal -->
     <div id="settingsModal" class="modal-overlay hidden">
-        <div class="modal-card glass-card relative no-scrollbar" style="width: 440px; max-width: calc(100vw - 32px); max-height: 85vh; overflow-y: auto;">
+        <div class="modal-card glass-card relative no-scrollbar"
+            style="width: 440px; max-width: calc(100vw - 32px); max-height: 85vh; overflow-y: auto;">
             <button id="closeSettingsBtn" class="absolute top-4 right-4 text-white/40 hover:text-white/80 transition">
                 <i class="ph ph-x"></i>
             </button>
@@ -357,33 +369,97 @@
                     </div>
                 </div>
 
+                <!-- Model Idle Timeout -->
+                <div class="p-3 bg-white/5 border border-white/10 rounded-xl">
+                    <div class="flex items-center justify-between">
+                        <div class="text-left">
+                            <div class="text-sm font-medium text-white/80 flex items-center gap-1.5">
+                                Model Idle Timeout
+                                <div id="modelIdleRestartWarning" class="hidden relative group cursor-help flex items-center">
+                                    <i class="ph-fill ph-warning-circle text-red-500 text-base"></i>
+                                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1 bg-[#1E1E1E] border border-red-500/20 text-red-400 text-[11px] font-medium tracking-wide whitespace-nowrap rounded-md shadow-xl opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100 pointer-events-none z-50">
+                                        Session Restart Required
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-xs text-white/40 mt-0.5">Hibernates model after idling.</div>
+                        </div>
+                        <label class="thinking-switch ml-3">
+                            <input type="checkbox" id="modelIdleTimeoutToggle" checked>
+                            <div class="switch-track">
+                                <div class="switch-thumb">
+                                    <i class="ph ph-timer text-[9px]"></i>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                    <!-- Stepper row — shown only when toggle is ON -->
+                    <div id="modelIdleTimeoutRow" class="mt-3 pt-3 border-t border-white/[0.07]">
+                        <div class="flex items-center justify-between">
+                            <div class="text-left">
+                                <div class="text-xs font-medium text-white/60">Timeout duration</div>
+                                <div class="text-xs text-white/30 mt-0.5">Minutes of idle before the model enters hibernation mode</div>
+                            </div>
+                            <div class="flex items-center gap-2 ml-3 flex-shrink-0">
+                                <button id="modelIdleTimeoutMinus"
+                                    class="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white flex items-center justify-center transition-colors font-medium">
+                                    <i class="ph ph-minus text-xs"></i>
+                                </button>
+                                <input id="modelIdleTimeoutInput" type="number" min="1" max="120" step="1" value="5"
+                                    class="w-12 text-center bg-white/5 border border-white/10 rounded-lg text-xs text-white/80 py-1.5 focus:outline-none focus:border-indigo-500/40 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none">
+                                <button id="modelIdleTimeoutPlus"
+                                    class="w-7 h-7 rounded-lg bg-white/5 border border-white/10 text-white/50 hover:bg-white/10 hover:text-white flex items-center justify-center transition-colors font-medium">
+                                    <i class="ph ph-plus text-xs"></i>
+                                </button>
+                                <span class="text-xs text-white/30 ml-1">min</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Personalization -->
                 <div class="p-3 bg-white/5 border border-white/10 rounded-xl space-y-3 text-left">
                     <div>
                         <div class="text-sm font-medium text-white/80">Personalization</div>
                         <div class="text-xs text-white/40 mt-0.5">Customize your AI's behavior and context</div>
                     </div>
-                    
+
                     <div class="space-y-3 mt-3 pt-3 border-t border-white/[0.07]">
                         <div class="flex gap-3">
                             <div class="w-1/2">
-                                <label class="block text-[11px] font-medium text-white/50 mb-1 uppercase tracking-wider">Your Name</label>
-                                <input type="text" id="persName" class="w-full bg-black/20 text-white/90 text-[13px] px-3 py-2 rounded-lg border border-white/10 focus:outline-none focus:border-indigo-400 transition placeholder-white/20" placeholder="e.g. Alice">
+                                <label
+                                    class="block text-[11px] font-medium text-white/50 mb-1 uppercase tracking-wider">Your
+                                    Name</label>
+                                <input type="text" id="persName"
+                                    class="w-full bg-black/20 text-white/90 text-[13px] px-3 py-2 rounded-lg border border-white/10 focus:outline-none focus:border-indigo-400 transition placeholder-white/20"
+                                    placeholder="e.g. Alice">
                             </div>
                             <div class="w-1/2">
-                                <label class="block text-[11px] font-medium text-white/50 mb-1 uppercase tracking-wider">Your Occupation</label>
-                                <input type="text" id="persOccupation" class="w-full bg-black/20 text-white/90 text-[13px] px-3 py-2 rounded-lg border border-white/10 focus:outline-none focus:border-indigo-400 transition placeholder-white/20" placeholder="e.g. Developer">
+                                <label
+                                    class="block text-[11px] font-medium text-white/50 mb-1 uppercase tracking-wider">Your
+                                    Occupation</label>
+                                <input type="text" id="persOccupation"
+                                    class="w-full bg-black/20 text-white/90 text-[13px] px-3 py-2 rounded-lg border border-white/10 focus:outline-none focus:border-indigo-400 transition placeholder-white/20"
+                                    placeholder="e.g. Developer">
                             </div>
                         </div>
-                        
+
                         <div>
-                            <label class="block text-[11px] font-medium text-white/50 mb-1 uppercase tracking-wider">More Info</label>
-                            <textarea id="persMoreInfo" rows="2" class="w-full bg-black/20 text-white/90 text-[13px] px-3 py-1.5 rounded-lg border border-white/10 focus:outline-none focus:border-indigo-400 transition resize-none custom-scrollbar placeholder-white/20" placeholder="Hobbies, preferences, contextual details..."></textarea>
+                            <label
+                                class="block text-[11px] font-medium text-white/50 mb-1 uppercase tracking-wider">More
+                                Info</label>
+                            <textarea id="persMoreInfo" rows="2"
+                                class="w-full bg-black/20 text-white/90 text-[13px] px-3 py-1.5 rounded-lg border border-white/10 focus:outline-none focus:border-indigo-400 transition resize-none custom-scrollbar placeholder-white/20"
+                                placeholder="Hobbies, preferences, contextual details..."></textarea>
                         </div>
-                        
+
                         <div>
-                            <label class="block text-[11px] font-medium text-white/50 mb-1 uppercase tracking-wider">Custom Instructions</label>
-                            <textarea id="persInstructions" rows="3" class="w-full bg-black/20 text-white/90 text-[13px] px-3 py-1.5 rounded-lg border border-white/10 focus:outline-none focus:border-indigo-400 transition resize-none custom-scrollbar placeholder-white/20" placeholder="e.g. Always respond in Spanish, be concise..."></textarea>
+                            <label
+                                class="block text-[11px] font-medium text-white/50 mb-1 uppercase tracking-wider">Custom
+                                Instructions</label>
+                            <textarea id="persInstructions" rows="3"
+                                class="w-full bg-black/20 text-white/90 text-[13px] px-3 py-1.5 rounded-lg border border-white/10 focus:outline-none focus:border-indigo-400 transition resize-none custom-scrollbar placeholder-white/20"
+                                placeholder="e.g. Always respond in Spanish, be concise..."></textarea>
                         </div>
                     </div>
                 </div>
@@ -393,7 +469,8 @@
                     <div class="flex items-center justify-between">
                         <div class="text-left">
                             <div class="text-sm font-medium text-white/80">Web Search</div>
-                            <div class="text-xs text-white/40 mt-0.5">Ground AI answers with live Tavily search results</div>
+                            <div class="text-xs text-white/40 mt-0.5">Ground AI answers with live Tavily search results
+                            </div>
                         </div>
                         <label class="thinking-switch ml-3">
                             <input type="checkbox" id="webSearchToggle">
@@ -406,7 +483,9 @@
                     </div>
                     <!-- API Key row — shown only when toggle is ON -->
                     <div id="webSearchKeyRow" class="hidden mt-3 pt-3 border-t border-white/[0.07]">
-                        <label class="block text-[11px] font-medium text-white/50 mb-1.5 uppercase tracking-wider">Tavily API Key</label>
+                        <label
+                            class="block text-[11px] font-medium text-white/50 mb-1.5 uppercase tracking-wider">Tavily
+                            API Key</label>
                         <div class="flex items-center gap-2">
                             <div class="relative flex-1">
                                 <input type="text" id="webSearchApiKey"
@@ -425,7 +504,7 @@
                         </div>
                         <p class="text-[11px] text-white/25 mt-1.5">Get a free key at
                             <a href="https://tavily.com" target="_blank" rel="noopener noreferrer"
-                               class="text-indigo-400/60 hover:text-indigo-400 underline transition-colors">tavily.com</a>
+                                class="text-indigo-400/60 hover:text-indigo-400 underline transition-colors">tavily.com</a>
                         </p>
                     </div>
                 </div>
@@ -482,7 +561,8 @@
                 <i class="ph ph-trash text-2xl text-red-400"></i>
             </div>
             <h3 class="text-base font-semibold text-white/90 mt-3 mb-1">Delete Chat?</h3>
-            <p class="text-sm text-white/50 leading-relaxed mb-5">Are you sure you want to delete this chat? This action cannot be undone.</p>
+            <p class="text-sm text-white/50 leading-relaxed mb-5">Are you sure you want to delete this chat? This action
+                cannot be undone.</p>
             <div class="flex gap-2 w-full">
                 <button id="deleteChatCancelBtn" class="modal-btn modal-btn-cancel flex-1">Cancel</button>
                 <button id="deleteChatProceedBtn"
@@ -511,14 +591,21 @@
 
 
     <!-- Image Lightbox Modal -->
-    <div id="imageLightbox" class="fixed inset-0 hidden flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity opacity-0" style="z-index: 9999; transition: opacity 0.3s ease;">
-        <img id="lightboxImage" src="" alt="Focus view" class="object-contain shadow-2xl scale-95 transition-transform duration-300" style="max-width: 70vw; max-height: 70vh;">
+    <div id="imageLightbox"
+        class="fixed inset-0 hidden flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity opacity-0"
+        style="z-index: 9999; transition: opacity 0.3s ease;">
+        <img id="lightboxImage" src="" alt="Focus view"
+            class="object-contain shadow-2xl scale-95 transition-transform duration-300"
+            style="max-width: 70vw; max-height: 70vh;">
     </div>
 
     <!-- Drag Overlay -->
-    <div id="dragOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] hidden flex items-center justify-center border-4 border-dashed border-indigo-500/40 transition-all opacity-0">
-        <div class="glass-card p-10 rounded-3xl flex flex-col items-center shadow-2xl shadow-indigo-500/20 pointer-events-none drag-card-pulse">
-            <div class="w-16 h-16 rounded-2xl bg-indigo-500/10 flex flex-col items-center justify-center mb-5 ring-1 ring-indigo-500/20">
+    <div id="dragOverlay"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] hidden flex items-center justify-center border-4 border-dashed border-indigo-500/40 transition-all opacity-0">
+        <div
+            class="glass-card p-10 rounded-3xl flex flex-col items-center shadow-2xl shadow-indigo-500/20 pointer-events-none drag-card-pulse">
+            <div
+                class="w-16 h-16 rounded-2xl bg-indigo-500/10 flex flex-col items-center justify-center mb-5 ring-1 ring-indigo-500/20">
                 <i class="ph ph-upload-simple text-3xl text-indigo-400 opacity-80"></i>
             </div>
             <h2 class="text-3xl font-bold text-white/90 mb-2 tracking-tight">Drop files here</h2>
