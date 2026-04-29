@@ -150,7 +150,17 @@ class CustomDropdown {
             const div = document.createElement('div');
             div.className = 'dropdown-option';
             div.dataset.value = value;
-            div.innerHTML = icon ? `<i class="${icon}"></i> ${label}` : label;
+            div.title = label; // show full name on hover when truncated
+            if (icon) {
+                const iconEl = document.createElement('i');
+                iconEl.className = icon;
+                iconEl.style.flexShrink = '0';
+                const textNode = document.createTextNode(' ' + label);
+                div.appendChild(iconEl);
+                div.appendChild(textNode);
+            } else {
+                div.textContent = label;
+            }
             div.addEventListener('click', () => {
                 this._select(div);
                 if (this._onChange) this._onChange(this._value);
@@ -1929,13 +1939,15 @@ function rebindMessageActions(chat) {
         copyBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             const code = codeEl?.innerText ?? pre?.innerText ?? '';
-            try { await navigator.clipboard.writeText(code); } catch { }
-            copyBtn.classList.add('copied');
-            copyBtn.innerHTML = '<i class="ph ph-check" style="font-size:12px;"></i><span>Copied!</span>';
-            setTimeout(() => {
-                copyBtn.classList.remove('copied');
-                copyBtn.innerHTML = '<i class="ph ph-copy" style="font-size:12px;"></i><span>Copy</span>';
-            }, 2000);
+            const ok = await copyRawText(code);
+            if (ok) {
+                copyBtn.classList.add('copied');
+                copyBtn.innerHTML = '<i class="ph ph-check" style="font-size:12px;"></i><span>Copied!</span>';
+                setTimeout(() => {
+                    copyBtn.classList.remove('copied');
+                    copyBtn.innerHTML = '<i class="ph ph-copy" style="font-size:12px;"></i><span>Copy</span>';
+                }, 2000);
+            }
         });
     });
 
@@ -2076,25 +2088,15 @@ function renderAIText(content, element) {
         copyBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
             const code = codeEl?.innerText ?? pre.innerText;
-            try {
-                await navigator.clipboard.writeText(code);
-            } catch {
-                // Fallback for older browsers
-                const ta = document.createElement('textarea');
-                ta.value = code;
-                ta.style.position = 'fixed';
-                ta.style.opacity = '0';
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                ta.remove();
+            const ok = await copyRawText(code);
+            if (ok) {
+                copyBtn.classList.add('copied');
+                copyBtn.innerHTML = '<i class="ph ph-check" style="font-size:12px;"></i><span>Copied!</span>';
+                setTimeout(() => {
+                    copyBtn.classList.remove('copied');
+                    copyBtn.innerHTML = '<i class="ph ph-copy" style="font-size:12px;"></i><span>Copy</span>';
+                }, 2000);
             }
-            copyBtn.classList.add('copied');
-            copyBtn.innerHTML = '<i class="ph ph-check" style="font-size:12px;"></i><span>Copied!</span>';
-            setTimeout(() => {
-                copyBtn.classList.remove('copied');
-                copyBtn.innerHTML = '<i class="ph ph-copy" style="font-size:12px;"></i><span>Copy</span>';
-            }, 2000);
         });
 
         pre.insertBefore(header, pre.firstChild);
@@ -2202,11 +2204,56 @@ function renderMessage(role, content, index = null, targetContainer = null, imag
     return wrapper.querySelector('.content-inner');
 }
 
-async function copyToClipboard(text) {
+/**
+ * Low-level copy helper — returns true on success, false on failure.
+ * Used by code-block buttons that show their own "Copied!" visual feedback.
+ */
+async function copyRawText(text) {
+    if (navigator.clipboard && window.isSecureContext) {
+        try { await navigator.clipboard.writeText(text); return true; } catch { /* fall through */ }
+    }
     try {
-        await navigator.clipboard.writeText(text);
-        showToast('Copied to clipboard!', 'info');
-    } catch (err) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length); // required on iOS
+        const ok = document.execCommand('copy');
+        ta.remove();
+        return ok;
+    } catch { return false; }
+}
+
+async function copyToClipboard(text) {
+    // Primary: Clipboard API (requires HTTPS or localhost)
+    if (navigator.clipboard && window.isSecureContext) {
+        try {
+            await navigator.clipboard.writeText(text);
+            showToast('Copied to clipboard!', 'info');
+            return;
+        } catch { /* fall through to fallback */ }
+    }
+
+    // Fallback: textarea + execCommand (works on HTTP / mobile browsers)
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        // On iOS, setSelectionRange is required instead of select()
+        ta.setSelectionRange(0, ta.value.length);
+        const ok = document.execCommand('copy');
+        ta.remove();
+        if (ok) {
+            showToast('Copied to clipboard!', 'info');
+        } else {
+            showToast('Failed to copy', 'error');
+        }
+    } catch {
         showToast('Failed to copy', 'error');
     }
 }

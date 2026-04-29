@@ -163,7 +163,6 @@ body {
 .dropdown-trigger {
     border: none;
     cursor: pointer;
-    white-space: nowrap;
 }
 
 .custom-dropdown.open .dropdown-trigger {
@@ -216,6 +215,11 @@ body {
     cursor: pointer;
     transition: background 0.12s, color 0.12s;
     user-select: none;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    /* allow the active dot to stay on the right */
+    min-width: 0;
 }
 
 .dropdown-option:hover {
