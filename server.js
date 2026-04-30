@@ -41,9 +41,11 @@ const defaultState = {
     modelIdleTimeout: 5,
     appliedModelIdleTimeoutEnabled: null,
     appliedModelIdleTimeout: null,
+    lastActivityTime: null,
     activeChatId: null,
     personalization: { name: '', occupation: '', moreInfo: '', instructions: '' },
     webSearch: { enabled: false, tavilyApiKey: '' },
+    timestampFormat: '12h',
     folders: [],
     chats: []
 };

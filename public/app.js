@@ -75,6 +75,17 @@ const modelIdleTimeoutInput = document.getElementById('modelIdleTimeoutInput');
 const modelIdleTimeoutMinus = document.getElementById('modelIdleTimeoutMinus');
 const modelIdleTimeoutPlus  = document.getElementById('modelIdleTimeoutPlus');
 const modelIdleRestartWarning = document.getElementById('modelIdleRestartWarning');
+const timestampFormatToggle = document.getElementById('timestampFormatToggle');
+const modelIdleTimer = document.getElementById('modelIdleTimer');
+const modelStatusContainer = document.getElementById('modelStatusContainer');
+const modelStatusLabel = document.getElementById('modelStatusLabel');
+const modelStatusPing = document.getElementById('modelStatusPing');
+const modelStatusDot = document.getElementById('modelStatusDot');
+const collapseStatusBtn = document.getElementById('collapseStatusBtn');
+
+let idleTimerInterval = null;
+let idleEndTime = null;
+let statusCollapsed = localStorage.getItem('statusCollapsed') === 'true';
 
 let chatSearchQuery = '';
 let draggedChatId = null;
@@ -201,6 +212,7 @@ let globalState = {
     model: '',
     thinkingMode: false,
     activeChatId: null,
+    timestampFormat: '12h',
     folders: [],
     chats: []
 };
@@ -330,6 +342,10 @@ function applyStateToUI() {
     // Apply web search settings
     applyWebSearchSettingsToUI();
 
+    if (timestampFormatToggle) {
+        timestampFormatToggle.checked = globalState.timestampFormat === '24h';
+    }
+
     // Apply model idle timeout setting
     if (modelIdleTimeoutToggle) {
         const enabled = globalState.modelIdleTimeoutEnabled !== false; // default true
@@ -368,6 +384,17 @@ function applyStateToUI() {
         if (activeEngineIcon) activeEngineIcon.className = globalState.engine === 'ollama' ? 'ph ph-cpu text-xs text-indigo-400' : 'ph ph-terminal text-xs text-violet-400';
         if (thinkingBtn) thinkingBtn.classList.toggle('active', !!globalState.thinkingMode);
 
+        if (!isGenerating && !idleTimerInterval) {
+            // Apply initial state instantly (no animation on page load).
+            // Disable transitions, set state, then re-enable after the browser has painted.
+            const transitionEls = [modelStatusContainer, modelIdleTimer];
+            transitionEls.forEach(el => { if (el) el.style.transition = 'none'; });
+            startIdleTimer(true);
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                transitionEls.forEach(el => { if (el) el.style.transition = ''; });
+            }));
+        }
+
         if (!globalState.chats || globalState.chats.length === 0) {
             createNewChat(true);
         } else {
@@ -379,11 +406,181 @@ function applyStateToUI() {
             loadChat(globalState.activeChatId);
         }
     } else {
+        resetIdleTimer();
         if (setupPage) setupPage.classList.remove('hidden');
         if (appContainer) appContainer.classList.add('hidden');
         if (setupEngineDropdown) setupEngineDropdown.value = globalState.engine || 'ollama';
         populateModelSelector();
     }
+}
+
+function hideContainer() {
+    if (modelStatusContainer) {
+        modelStatusContainer.classList.remove('max-w-[200px]', 'opacity-100');
+        modelStatusContainer.classList.add('max-w-0', 'opacity-0');
+    }
+    // Stop the ping animation so it doesn't bleed outside the clipped container
+    if (modelStatusPing) modelStatusPing.classList.remove('animate-ping');
+    // Keep the button visible but flip it to point right (expand)
+    if (collapseStatusBtn && !collapseStatusBtn.classList.contains('hidden')) {
+        const icon = collapseStatusBtn.querySelector('i');
+        if (icon) { icon.className = 'ph ph-caret-right text-[10px]'; }
+        collapseStatusBtn.title = 'Expand status';
+    }
+}
+
+function showContainer() {
+    // Always show the button when we have a live status
+    if (collapseStatusBtn) collapseStatusBtn.classList.remove('hidden');
+
+    if (statusCollapsed) {
+        // Keep container hidden but ensure the chevron faces right
+        const icon = collapseStatusBtn?.querySelector('i');
+        if (icon) { icon.className = 'ph ph-caret-right text-[9px]'; }
+        if (collapseStatusBtn) collapseStatusBtn.title = 'Expand status';
+        if (modelStatusPing) modelStatusPing.classList.remove('animate-ping');
+        return;
+    }
+
+    if (modelStatusContainer) {
+        modelStatusContainer.classList.remove('max-w-0', 'opacity-0');
+        modelStatusContainer.classList.add('max-w-[200px]', 'opacity-100');
+        const icon = collapseStatusBtn?.querySelector('i');
+        if (icon) { icon.className = 'ph ph-caret-left text-[9px]'; }
+        if (collapseStatusBtn) collapseStatusBtn.title = 'Collapse status';
+    }
+    // Restore ping animation (setModelStatus will set the correct color class)
+    if (modelStatusPing && !modelStatusPing.classList.contains('hidden')) {
+        modelStatusPing.classList.add('animate-ping');
+    }
+}
+
+function hideTimer() {
+    if (modelIdleTimer) {
+        modelIdleTimer.classList.remove('max-w-[60px]', 'opacity-100', 'px-2', 'border-r');
+        modelIdleTimer.classList.add('max-w-0', 'opacity-0', 'px-0', 'border-r-0');
+    }
+}
+
+function showTimer() {
+    if (modelIdleTimer) {
+        modelIdleTimer.classList.remove('max-w-0', 'opacity-0', 'px-0', 'border-r-0');
+        modelIdleTimer.classList.add('max-w-[60px]', 'opacity-100', 'px-2', 'border-r');
+    }
+}
+
+function setModelStatus(status) {
+    if (!modelStatusContainer) return;
+    if (globalState.engine !== 'ollama' || !globalState.sessionActive) {
+        hideContainer();
+        return;
+    }
+    
+    showContainer();
+    
+    if (status === 'processing') {
+        modelStatusLabel.textContent = 'Processing';
+        modelStatusPing.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75';
+        modelStatusDot.className = 'relative inline-flex rounded-full h-2 w-2 bg-yellow-500';
+        hideTimer();
+    } else if (status === 'online') {
+        modelStatusLabel.textContent = 'Online';
+        modelStatusPing.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75';
+        modelStatusDot.className = 'relative inline-flex rounded-full h-2 w-2 bg-emerald-500';
+    } else if (status === 'hibernating') {
+        modelStatusLabel.textContent = 'Hibernating';
+        modelStatusPing.className = 'hidden';
+        modelStatusDot.className = 'relative inline-flex rounded-full h-2 w-2 bg-orange-500';
+        hideTimer();
+    }
+}
+
+function resetIdleTimer(isHibernating = false) {
+    if (idleTimerInterval) {
+        clearInterval(idleTimerInterval);
+        idleTimerInterval = null;
+    }
+    
+    if (!globalState.sessionActive) {
+        hideContainer();
+        hideTimer();
+        if (modelIdleTimer) modelIdleTimer.textContent = '';
+    } else if (isGenerating) {
+        setModelStatus('processing');
+    } else if (isHibernating) {
+        setModelStatus('hibernating');
+        hideTimer();
+        if (modelIdleTimer) modelIdleTimer.textContent = '';
+    }
+}
+
+function startIdleTimer(fromRefresh = false) {
+    resetIdleTimer();
+    if (globalState.engine !== 'ollama') return;
+    
+    const isEnabled = globalState.appliedModelIdleTimeoutEnabled ?? globalState.modelIdleTimeoutEnabled;
+    if (isEnabled === false || !globalState.sessionActive) {
+        if (globalState.sessionActive) setModelStatus('online'); // stays online forever
+        return;
+    }
+
+    const minutes = globalState.appliedModelIdleTimeout ?? globalState.modelIdleTimeout ?? 5;
+    if (minutes <= 0) {
+        setModelStatus('hibernating');
+        return;
+    }
+
+    idleEndTime = Date.now() + (minutes * 60 * 1000);
+
+    // Only restore the elapsed time on a page refresh, not after a live generation.
+    // After a live generation we always start from the full duration.
+    if (fromRefresh) {
+        const activeChat = (globalState.chats || []).find(c => c.id === globalState.activeChatId);
+        if (activeChat && activeChat.messages && activeChat.messages.length > 0) {
+            const msgs = activeChat.messages;
+            const lastAiMsg = [...msgs].reverse().find(m => m.role === 'ai');
+            if (lastAiMsg && lastAiMsg.timestamp) {
+                const elapsed = Date.now() - lastAiMsg.timestamp;
+                const remaining = (minutes * 60 * 1000) - elapsed;
+                if (remaining <= 0) {
+                    setModelStatus('hibernating');
+                    return;
+                }
+                idleEndTime = Date.now() + remaining;
+            }
+        }
+    }
+    
+    if (modelIdleTimer) {
+        const initRemaining = idleEndTime - Date.now();
+        const initMins = Math.max(0, Math.floor(initRemaining / 60000));
+        const initSecs = Math.max(0, Math.floor((initRemaining % 60000) / 1000));
+        modelIdleTimer.textContent = `${String(initMins).padStart(2, '0')}:${String(initSecs).padStart(2, '0')}`;
+    }
+    
+    showTimer();
+    setModelStatus('online');
+
+    idleTimerInterval = setInterval(() => {
+        if (!globalState.sessionActive || isGenerating) {
+            resetIdleTimer();
+            return;
+        }
+
+        const now = Date.now();
+        const remaining = idleEndTime - now;
+        
+        if (remaining <= 0) {
+            resetIdleTimer(true); // true = isHibernating
+            return;
+        }
+
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        if (modelIdleTimer) {
+            modelIdleTimer.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+    }, 1000);
 }
 
 // ── Event listeners ───────────────────────────────────────────────────────────
@@ -408,6 +605,31 @@ function setupEventListeners() {
                 shutdownServerBtn.classList.replace('border-red-500/20', 'border-green-500/20');
                 shutdownServerBtn.classList.replace('hover:bg-red-500/20', 'cursor-not-allowed');
                 showToast('Server has been shut down. You can close this window.', 'info');
+            }
+        });
+    }
+
+    if (collapseStatusBtn) {
+        collapseStatusBtn.addEventListener('click', () => {
+            statusCollapsed = !statusCollapsed;
+            localStorage.setItem('statusCollapsed', statusCollapsed);
+            if (statusCollapsed) {
+                hideContainer();
+            } else {
+                // Manually expand - bypass the statusCollapsed guard in showContainer
+                if (modelStatusContainer) {
+                    modelStatusContainer.classList.remove('max-w-0', 'opacity-0');
+                    modelStatusContainer.classList.add('max-w-[200px]', 'opacity-100');
+                }
+                // Force animation restart: remove, trigger reflow, then re-add
+                if (modelStatusPing) {
+                    modelStatusPing.classList.remove('animate-ping');
+                    void modelStatusPing.offsetWidth; // reflow
+                    modelStatusPing.classList.add('animate-ping');
+                }
+                const icon = collapseStatusBtn.querySelector('i');
+                if (icon) { icon.className = 'ph ph-caret-left text-[9px]'; }
+                collapseStatusBtn.title = 'Collapse status';
             }
         });
     }
@@ -498,6 +720,15 @@ function setupEventListeners() {
     const setupSettingsBtn = document.getElementById('setupSettingsBtn');
     if (setupSettingsBtn) setupSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
     if (closeSettingsBtn) closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
+
+    if (timestampFormatToggle) {
+        timestampFormatToggle.addEventListener('change', () => {
+            const format = timestampFormatToggle.checked ? '24h' : '12h';
+            updateState({ timestampFormat: format });
+            chatDOMCache = {}; // Clear cache to force timestamp re-render
+            if (globalState.activeChatId) loadChat(globalState.activeChatId);
+        });
+    }
 
     if (clearHistoryTriggerBtn) clearHistoryTriggerBtn.addEventListener('click', () => {
         settingsModal.classList.add('hidden');
@@ -2125,12 +2356,15 @@ function formatMsgTime(ts) {
     const now = new Date();
     const isToday = d.toDateString() === now.toDateString();
     const h = d.getHours(), m = d.getMinutes();
-    const hh = h % 12 || 12;
+    const is24h = globalState.timestampFormat === '24h';
+    
+    const hh = is24h ? String(h).padStart(2, '0') : (h % 12 || 12);
     const mm = String(m).padStart(2, '0');
-    const ampm = h < 12 ? 'AM' : 'PM';
-    if (isToday) return `Today ${hh}:${mm} ${ampm}`;
+    const timeStr = is24h ? `${hh}:${mm}` : `${hh}:${mm} ${h < 12 ? 'AM' : 'PM'}`;
+
+    if (isToday) return `Today ${timeStr}`;
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return `${months[d.getMonth()]} ${d.getDate()}, ${hh}:${mm} ${ampm}`;
+    return `${months[d.getMonth()]} ${d.getDate()}, ${timeStr}`;
 }
 
 function renderMessage(role, content, index = null, targetContainer = null, images = [], timestamp = null) {
@@ -2712,6 +2946,7 @@ async function sendMessage() {
 
     // Switch UI into generating state
     isGenerating = true;
+    resetIdleTimer();
     generatingChatId = globalState.activeChatId;
     renderChatList();
     sendBtn.classList.add('hidden');
@@ -2823,10 +3058,15 @@ function stopGeneration() {
 function finalizeGeneration() {
     isGenerating = false;
 
+    // Persist the activity timestamp so the timer survives page refreshes
+    const now = Date.now();
+    updateState({ lastActivityTime: now });
+
     // Always ensure UI resets
     sendBtn.classList.remove('hidden');
     stopBtn.classList.add('hidden');
     typingIndicator.classList.add('hidden');
+    startIdleTimer();
 
     // Ensure thinking block collapses after done (covers cases where stream started but no content yet)
     if (thinkingEl && globalState.activeChatId === generatingChatId) {
