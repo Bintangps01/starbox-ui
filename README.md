@@ -35,21 +35,24 @@ Currently in alpha state, **Starbox UI** is a premium-designed web interface tha
 ## 🎨 Features
 
 - **Works Fully Offline** — All UI libraries (icons, markdown, syntax highlighting, math) are bundled locally. No internet required after installation.
-- **Thinking Mode** — Real-time visualization of the model's thought process, with collapsible thinking blocks and infinite-loop protection (60s wall-clock cap + 45s inactivity watchdog).
-- **Web Search** — Enable web search in the settings menu with your Tavily API key (Only works online obviously).
-- **Temporary Chat** — Enable ghost mode to chat without saving anything to disk. The conversation is wiped the moment you navigate away or refresh.
+- **Thinking Mode** — Real-time visualization of the model's thought process.
+- **Web Search** — Enable web search in the settings menu with your Tavily API key (Need internet connection to use obviously).
+- **Temporary Chat** — Enable temporary chat mode to chat without saving anything to disk. The conversation is wiped the moment you navigate away or refresh.
 - **Real-time Streaming** — Responses appear token-by-token using WebSockets for a fluid, ChatGPT-like experience.
 - **Export & Import Chats** — Download individual chat histories as `.json` files and easily import them back to transfer or restore conversations.
 - **Personalization** — Set custom AI behaviors globally by providing your name, occupation, extra context, and system instructions via the settings.
 - **Performance Optimized** — Toggleable limits on rendered messages and full DOM-caching ensure the UI remains blazing fast, even in long chat sessions.
-- **Instant Chat Search** — Filter your entire conversation history in real time from the sidebar.
-- **Drag-and-Drop Reordering** — Reorganize your chat list with native HTML5 drag-and-drop.
-- **File & Image Uploads** — Attach images with an interactive full-screen lightbox for visual analysis (with models like llava), and extract text contents directly from files.
-- **Persistent History** — All conversations are saved locally to a `data/state.json` file on the server.
+- **Drag-and-Drop Reordering** — Reorder your conversations and folders with drag and drop.
+- **Image Uploads** — Attach images for visual analysis.
+- **Persistent History** — All conversations are saved locally to a `data/state.json` file.
 - **Settings Panel** — Centralized settings menu with chat history deletion safeguards and data managers.
 - **Auto Model Detection** — Automatically fetches all locally available Ollama models on startup via the Ollama REST API.
-- **Stop Session** — Safely unload the current model from memory and return to the setup screen at any time to explicitly free up VRAM.
+- **Stop Session** — Safely unload the current model from memory and return to the setup screen at any time to free up VRAM.
 - **Multi-device Access** — Access Starbox UI from your phone or tablet via your local network.
+- **Folders Management** — Create folders, move chats between them, and manage your conversations with ease.
+- **Pin Chats** — Pin important chats to the top of the sidebar for quick access.
+- **Archived Chats** — Archive chats to keep them organized and out of the way.
+-
 
 ---
 

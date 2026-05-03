@@ -25,6 +25,9 @@ const expandSidebarBtn = document.getElementById('expandSidebarBtn');
 const miniNewChatBtn = document.getElementById('miniNewChatBtn');
 const miniSettingsBtn = document.getElementById('miniSettingsBtn');
 const inputPanel = document.getElementById('inputPanel');
+const chatInputContainer = document.getElementById('chatInputContainer');
+const archivedChatBanner = document.getElementById('archivedChatBanner');
+const bannerUnarchiveBtn = document.getElementById('bannerUnarchiveBtn');
 const chatMessages = document.getElementById('chatMessages');
 const chatSearchBox = document.getElementById('chatSearchBox');
 const settingsBtn = document.getElementById('settingsBtn');
@@ -94,6 +97,21 @@ let folderToDeleteId = null;
 let isTemporaryChat = false; // When true, active chat is not persisted to backend
 let isWebSearchActive = false; // Per-send toggle: web search ON for the next message only
 let isUserScrolledUp = false;
+
+if (bannerUnarchiveBtn) {
+    bannerUnarchiveBtn.addEventListener('click', () => {
+        if (globalState.activeChatId) {
+            const activeChat = globalState.chats.find(c => c.id === globalState.activeChatId);
+            if (activeChat) {
+                activeChat.isArchived = false;
+                saveChats();
+                renderChatList();
+                if(typeof renderArchivedChats === 'function') renderArchivedChats();
+                loadChat(globalState.activeChatId);
+            }
+        }
+    });
+}
 
 // Initial state caching for restart warnings is now handled via appliedModelIdleTimeout vars in globalState
 if (chatMessages) {
@@ -416,15 +434,15 @@ function applyStateToUI() {
 
 function hideContainer() {
     if (modelStatusContainer) {
-        modelStatusContainer.classList.remove('max-w-[200px]', 'opacity-100');
-        modelStatusContainer.classList.add('max-w-0', 'opacity-0');
+        modelStatusContainer.classList.remove('status-expanded', 'max-w-[200px]', 'max-w-0', 'opacity-100', 'opacity-0');
+        modelStatusContainer.classList.add('status-collapsed');
     }
     // Stop the ping animation so it doesn't bleed outside the clipped container
     if (modelStatusPing) modelStatusPing.classList.remove('animate-ping');
     // Keep the button visible but flip it to point right (expand)
     if (collapseStatusBtn && !collapseStatusBtn.classList.contains('hidden')) {
-        const icon = collapseStatusBtn.querySelector('i');
-        if (icon) { icon.className = 'ph ph-caret-right text-[10px]'; }
+        collapseStatusBtn.classList.remove('status-expanded');
+        collapseStatusBtn.classList.add('status-collapsed');
         collapseStatusBtn.title = 'Expand status';
     }
 }
@@ -435,19 +453,23 @@ function showContainer() {
 
     if (statusCollapsed) {
         // Keep container hidden but ensure the chevron faces right
-        const icon = collapseStatusBtn?.querySelector('i');
-        if (icon) { icon.className = 'ph ph-caret-right text-[9px]'; }
-        if (collapseStatusBtn) collapseStatusBtn.title = 'Expand status';
+        if (collapseStatusBtn) {
+            collapseStatusBtn.classList.remove('status-expanded');
+            collapseStatusBtn.classList.add('status-collapsed');
+            collapseStatusBtn.title = 'Expand status';
+        }
         if (modelStatusPing) modelStatusPing.classList.remove('animate-ping');
         return;
     }
 
     if (modelStatusContainer) {
-        modelStatusContainer.classList.remove('max-w-0', 'opacity-0');
-        modelStatusContainer.classList.add('max-w-[200px]', 'opacity-100');
-        const icon = collapseStatusBtn?.querySelector('i');
-        if (icon) { icon.className = 'ph ph-caret-left text-[9px]'; }
-        if (collapseStatusBtn) collapseStatusBtn.title = 'Collapse status';
+        modelStatusContainer.classList.remove('status-collapsed', 'max-w-0', 'max-w-[200px]', 'opacity-0', 'opacity-100');
+        modelStatusContainer.classList.add('status-expanded');
+        if (collapseStatusBtn) {
+            collapseStatusBtn.classList.remove('status-collapsed');
+            collapseStatusBtn.classList.add('status-expanded');
+            collapseStatusBtn.title = 'Collapse status';
+        }
     }
     // Restore ping animation (setModelStatus will set the correct color class)
     if (modelStatusPing && !modelStatusPing.classList.contains('hidden')) {
@@ -618,8 +640,12 @@ function setupEventListeners() {
             } else {
                 // Manually expand - bypass the statusCollapsed guard in showContainer
                 if (modelStatusContainer) {
-                    modelStatusContainer.classList.remove('max-w-0', 'opacity-0');
-                    modelStatusContainer.classList.add('max-w-[200px]', 'opacity-100');
+                    modelStatusContainer.classList.remove('status-collapsed');
+                    modelStatusContainer.classList.add('status-expanded');
+                }
+                if (collapseStatusBtn) {
+                    collapseStatusBtn.classList.remove('status-collapsed');
+                    collapseStatusBtn.classList.add('status-expanded');
                 }
                 // Force animation restart: remove, trigger reflow, then re-add
                 if (modelStatusPing) {
@@ -789,6 +815,7 @@ function setupEventListeners() {
         chatDOMCache = {}; // invalidate all caches
         saveChats();
         createNewChat(true);
+        if(typeof renderArchivedChats === 'function') renderArchivedChats();
         clearConfirmModal.classList.add('hidden');
     });
 
@@ -1553,8 +1580,10 @@ function debouncedLoadChat(id, delay = 80) {
 }
 
 function renderChatList() {
+    // Cleanup any orphaned menus from document body
+    document.querySelectorAll('body > .folder-options-menu, body > .chat-options-menu').forEach(el => el.remove());
     chatList.innerHTML = '';
-    const allChats = globalState.chats.filter(c => !c.isTemporary && c.messages.length > 0);
+    const allChats = globalState.chats.filter(c => !c.isTemporary && !c.isArchived && c.messages.length > 0);
     const folders = globalState.folders || [];
 
     // ── Search mode: flat list ignoring folder structure ──────────────────────
@@ -1714,7 +1743,7 @@ function appendFolderItem(folder, allChats, container = chatList) {
             <button class="folder-options-trigger flex items-center justify-center w-6 h-6 text-white/40 hover:text-white transition" title="Options">
                 <i class="ph ph-dots-three-outline-vertical text-[16px]"></i>
             </button>
-            <div class="folder-options-menu glass-dropdown hidden shadow-2xl overflow-hidden" style="left:auto;right:0;top:calc(100% + 4px);min-width:130px;z-index:50;padding:4px;">
+            <div class="folder-options-menu glass-dropdown hidden shadow-2xl overflow-hidden" style="position:fixed;z-index:9999;padding:4px;min-width:130px;">
                 <div class="dropdown-option rename-folder text-white/80 hover:text-white mb-0.5">
                     <i class="ph ph-pencil-simple text-sm"></i> Rename
                 </div>
@@ -1784,7 +1813,27 @@ function appendFolderItem(folder, allChats, container = chatList) {
         const wasHidden = optionsMenu.classList.contains('hidden');
         document.querySelectorAll('.folder-options-menu, .chat-options-menu').forEach(m => m.classList.add('hidden'));
         document.querySelectorAll('.folder-actions, .chat-actions').forEach(a => a.style.opacity = '');
-        if (wasHidden) { optionsMenu.classList.remove('hidden'); actionsDiv.style.opacity = '1'; }
+        if (wasHidden) {
+            optionsMenu.classList.remove('hidden');
+            actionsDiv.style.opacity = '1';
+            
+            // Move to body to escape any CSS transforms (which act as fixed positioning containers)
+            document.body.appendChild(optionsMenu);
+            
+            // Calculate fixed position
+            const triggerRect = optionsTrigger.getBoundingClientRect();
+            optionsMenu.style.top = (triggerRect.bottom + 4) + 'px';
+            optionsMenu.style.right = (window.innerWidth - triggerRect.right) + 'px';
+            optionsMenu.style.left = 'auto';
+            optionsMenu.style.bottom = 'auto';
+            
+            // Measure to check for viewport overflow
+            const menuRect = optionsMenu.getBoundingClientRect();
+            if (menuRect.bottom > window.innerHeight - 8) {
+                // Flip upward
+                optionsMenu.style.top = (triggerRect.top - menuRect.height - 4) + 'px';
+            }
+        }
     });
 
     header.querySelector('.rename-folder').addEventListener('click', e => {
@@ -1842,11 +1891,12 @@ function appendChatItem(container, chat, currentFolderId = null) {
             <button class="options-trigger flex-shrink-0 flex items-center justify-center w-6 h-6 text-white/40 hover:text-white transition" title="Options">
                 <i class="ph ph-dots-three-outline-vertical text-[18px]"></i>
             </button>
-            <div class="chat-options-menu glass-dropdown hidden shadow-2xl overflow-visible" style="left:auto;right:0;top:calc(100% + 4px);min-width:145px;z-index:50;padding:4px;">
+            <div class="chat-options-menu glass-dropdown hidden shadow-2xl overflow-visible" style="position:fixed;z-index:9999;padding:4px;min-width:145px;">
                 ${!currentFolderId ? `<div class="dropdown-option pin-chat text-white/80 hover:text-white mb-0.5"><i class="ph ${chat.isPinned ? 'ph-push-pin-slash' : 'ph-push-pin'} text-sm"></i> ${chat.isPinned ? 'Unpin' : 'Pin'}</div>` : ''}
                 <div class="dropdown-option rename-chat text-white/80 hover:text-white mb-0.5"><i class="ph ph-pencil-simple text-sm"></i> Rename</div>
                 ${folderMenuHtml}
                 <div class="dropdown-option export-chat text-white/80 hover:text-white mb-0.5"><i class="ph ph-export text-sm"></i> Export</div>
+                <div class="dropdown-option archive-chat text-white/80 hover:text-white mb-0.5"><i class="ph ph-archive text-sm"></i> Archive</div>
                 <div class="dropdown-option delete-chat !text-red-500 hover:!text-red-400 hover:!bg-red-500/10"><i class="ph ph-trash text-sm"></i> Delete</div>
             </div>
         </div>`;
@@ -1861,7 +1911,28 @@ function appendChatItem(container, chat, currentFolderId = null) {
         document.querySelectorAll('.chat-options-menu, .folder-options-menu').forEach(m => m.classList.add('hidden'));
         document.querySelectorAll('.chat-actions, .folder-actions').forEach(a => a.style.opacity = '');
         document.querySelectorAll('.chat-item').forEach(b => { if (!b.querySelector('input')) b.draggable = true; });
-        if (wasHidden) { optionsMenu.classList.remove('hidden'); actionsDiv.style.opacity = '1'; btn.draggable = false; }
+        if (wasHidden) {
+            optionsMenu.classList.remove('hidden');
+            actionsDiv.style.opacity = '1';
+            btn.draggable = false;
+            
+            // Move to body to escape any CSS transforms (which act as fixed positioning containers)
+            document.body.appendChild(optionsMenu);
+            
+            // Calculate fixed position
+            const triggerRect = optionsTrigger.getBoundingClientRect();
+            optionsMenu.style.top = (triggerRect.bottom + 4) + 'px';
+            optionsMenu.style.right = (window.innerWidth - triggerRect.right) + 'px';
+            optionsMenu.style.left = 'auto';
+            optionsMenu.style.bottom = 'auto';
+            
+            // Measure to check for viewport overflow
+            const menuRect = optionsMenu.getBoundingClientRect();
+            if (menuRect.bottom > window.innerHeight - 8) {
+                // Flip upward
+                optionsMenu.style.top = (triggerRect.top - menuRect.height - 4) + 'px';
+            }
+        }
     });
 
     btn.querySelector('.delete-chat').addEventListener('click', e => {
@@ -1869,6 +1940,18 @@ function appendChatItem(container, chat, currentFolderId = null) {
         optionsMenu.classList.add('hidden'); actionsDiv.style.opacity = '';
         chatToDeleteId = chat.id;
         deleteChatConfirmModal.classList.remove('hidden');
+    });
+
+    btn.querySelector('.archive-chat').addEventListener('click', e => {
+        e.stopPropagation();
+        optionsMenu.classList.add('hidden'); actionsDiv.style.opacity = '';
+        chat.isArchived = true;
+        if(chat.id === globalState.activeChatId) {
+            createNewChat(true);
+        } else {
+            saveChats(); renderChatList();
+        }
+        if(typeof renderArchivedChats === 'function') renderArchivedChats();
     });
 
     btn.querySelector('.export-chat').addEventListener('click', e => {
@@ -2052,11 +2135,21 @@ function deleteChat(id) {
         saveChats();
         renderChatList();
     }
+    if(typeof renderArchivedChats === 'function') renderArchivedChats();
 }
 
 function loadChat(id) {
     const chat = globalState.chats.find(c => c.id === id);
     if (!chat) return;
+
+    // Toggle archived chat banner
+    if (chat.isArchived) {
+        if (chatInputContainer) chatInputContainer.classList.add('hidden');
+        if (archivedChatBanner) archivedChatBanner.classList.remove('hidden');
+    } else {
+        if (chatInputContainer) chatInputContainer.classList.remove('hidden');
+        if (archivedChatBanner) archivedChatBanner.classList.add('hidden');
+    }
 
     // Sync temp mode state from the chat object
     isTemporaryChat = !!chat.isTemporary;
@@ -3028,10 +3121,16 @@ async function sendMessage() {
     }
 
     if (ws && ws.readyState === WebSocket.OPEN) {
+        // Sync only the model/settings from the server — do NOT overwrite the full globalState
+        // here since the AI response will be appended to the current globalState.chats after streaming.
+        // Replacing globalState mid-stream causes the final saveChats() to write to a stale reference.
         fetch('/api/state').then(res => res.json())
         .then(data => {
-            globalState = data;
-            globalState.folders = globalState.folders || [];
+            // Selectively merge only UI/settings fields, never chats/folders
+            const safeFields = ['model','engine','thinkingMode','personalization','webSearchEnabled','webSearchProvider','webSearchApiKey','foldersExpanded','chatsExpanded','lastActivityTime','modelIdleTimeout','modelIdleTimeoutEnabled'];
+            safeFields.forEach(key => {
+                if (data[key] !== undefined) globalState[key] = data[key];
+            });
             updateUIWithState();
         });
         ws.send(JSON.stringify({
@@ -3117,4 +3216,84 @@ function finalizeGeneration() {
     
     // Always update sidebar at the end to clear any loading states
     renderChatList();
+}
+
+// ── Archived Chats Management ────────────────────────────────────────────────
+function renderArchivedChats() {
+    const list = document.getElementById('archivedChatsList');
+    if(!list) return;
+    list.innerHTML = '';
+    const archived = globalState.chats ? globalState.chats.filter(c => c.isArchived) : [];
+    if(archived.length === 0) {
+        list.innerHTML = '<div class="text-[11px] text-white/30 text-center py-2 italic">No archived chats</div>';
+        return;
+    }
+    archived.forEach(chat => {
+        const row = document.createElement('div');
+        row.className = 'flex justify-between items-center p-3 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors group';
+        row.innerHTML = `
+            <div class="line-clamp-2 text-left text-sm text-white/80 pr-4 flex-1 pointer-events-none group-hover:text-white transition-colors font-medium">${escapeHtml(chat.title)}</div>
+            <div class="flex gap-1.5 sm:gap-2 flex-shrink-0">
+                <button class="view-archived-btn px-2.5 sm:px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-white/70 hover:text-white transition-colors flex items-center gap-1.5" title="View">
+                    <i class="ph ph-eye text-sm"></i> <span class="hidden sm:inline">View</span>
+                </button>
+                <button class="unarchive-btn px-2.5 sm:px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs font-medium text-white/70 hover:text-white transition-colors flex items-center gap-1.5" title="Unarchive">
+                    <i class="ph ph-arrow-u-up-left text-sm"></i> <span class="hidden sm:inline">Unarchive</span>
+                </button>
+                <button class="delete-archived-btn px-2.5 sm:px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-xs font-medium text-red-400 transition-colors flex items-center gap-1.5" title="Delete Permanently">
+                    <i class="ph ph-trash text-sm"></i> <span class="hidden sm:inline">Delete</span>
+                </button>
+            </div>
+        `;
+        row.querySelector('.view-archived-btn').addEventListener('click', () => {
+            globalState.activeChatId = chat.id;
+            saveChats();
+            renderChatList();
+            loadChat(chat.id);
+            const _archModal = document.getElementById('archivedChatsModal');
+            const _settModal = document.getElementById('settingsModal');
+            if (_archModal) _archModal.classList.add('hidden');
+            if (_settModal) _settModal.classList.add('hidden');
+        });
+        row.querySelector('.unarchive-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Always look up the live reference by ID, not the stale closure
+            const liveChat = globalState.chats.find(c => c.id === chat.id);
+            if (!liveChat) return;
+            liveChat.isArchived = false;
+            saveChats();
+            renderChatList();
+            // Restore input panel if this was the active chat
+            if (globalState.activeChatId === chat.id) {
+                loadChat(chat.id);
+            }
+            // Remove just this row — keeps other rows and their listeners intact
+            row.remove();
+            const list = document.getElementById('archivedChatsList');
+            if (list && list.children.length === 0) {
+                list.innerHTML = '<div class="text-sm text-white/30 text-center py-8 italic">No archived chats</div>';
+            }
+        });
+        row.querySelector('.delete-archived-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            chatToDeleteId = chat.id;
+            const deleteChatConfirmModal = document.getElementById('deleteChatConfirmModal');
+            if(deleteChatConfirmModal) deleteChatConfirmModal.classList.remove('hidden');
+        });
+        list.appendChild(row);
+    });
+}
+
+const openArchivedChatsModalBtn = document.getElementById('openArchivedChatsModalBtn');
+const archivedChatsModal = document.getElementById('archivedChatsModal');
+const closeArchivedChatsBtn = document.getElementById('closeArchivedChatsBtn');
+
+if (openArchivedChatsModalBtn && archivedChatsModal && closeArchivedChatsBtn) {
+    openArchivedChatsModalBtn.addEventListener('click', () => {
+        archivedChatsModal.classList.remove('hidden');
+        renderArchivedChats();
+    });
+    closeArchivedChatsBtn.addEventListener('click', () => {
+        archivedChatsModal.classList.add('hidden');
+    });
 }
